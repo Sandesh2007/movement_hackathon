@@ -86,27 +86,6 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-
-      {/* Wallet Connection */}
-      <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
-        {walletAddress ? (
-          <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Wallet</p>
-            <p className="font-mono text-sm text-zinc-950 dark:text-zinc-50">
-              {walletAddress.slice(0, 3)}... {walletAddress.slice(-4)}
-            </p>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Movement Mainnet
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              No wallet connected
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
