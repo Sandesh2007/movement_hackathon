@@ -16,25 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Movement App",
-  description: "Movement Progressive Web App",
-  manifest: "/manifest.json",
-  themeColor: "#000000",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Movement",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  icons: {
-    icon: "/icon-192x192.png",
-    apple: "/icon-192x192.png",
-  },
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-  },
+  description: "Movement App",
 };
 
 export default function RootLayout({
