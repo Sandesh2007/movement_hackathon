@@ -18,13 +18,12 @@ The orchestrator follows a coordination pattern:
 
 2. Agent Coordination Layer:
    - Receives user queries and determines which specialized agent to call
-   - Coordinates with Balance Agent and Multichain Liquidity Agent (A2A protocol)
+   - Currently coordinates with Balance Agent (A2A protocol)
    - Uses send_message_to_a2a_agent tool (provided by frontend middleware)
    - Enforces sequential agent calls (no parallel/concurrent calls)
 
 3. Specialized Agents:
    - Balance Agent: Checks cryptocurrency balances across multiple chains
-   - Multichain Liquidity Agent: Provides liquidity pool information (TVL, APY, pool details)
    - Future agents can be added (transfer, swap, etc.)
 
 WORKFLOW:
@@ -50,7 +49,7 @@ ENVIRONMENT VARIABLES:
 USAGE:
 ------
 Mounted mode (recommended):
-    from app.agents.orchestrator import create_orchestrator_agent_app
+    from app.agents.orchestrator.agent import create_orchestrator_agent_app
     app.mount("/orchestrator", create_orchestrator_agent_app())
 
 NOTES:
@@ -89,13 +88,6 @@ orchestrator_agent = LlmAgent(
        - Can check ERC-20 token balances (USDC, USDT, DAI, etc.)
        - Requires wallet address (0x format) and optional network specification
 
-    2. **Multichain Liquidity Agent** (LangGraph) - Provides liquidity pool information
-       - Supports Ethereum, BNB, Polygon, and other EVM-compatible chains
-       - Can get liquidity pool details (TVL, reserves, pool address)
-       - Can get pool APY (Annual Percentage Yield) with historical data
-       - Can get pool TVL (Total Value Locked) with change metrics
-       - Requires token pair (e.g., USDC/ETH, USDT/BNB) and optional network specification
-
     CRITICAL CONSTRAINTS:
     - You MUST call agents ONE AT A TIME, never make multiple tool calls simultaneously
     - After making a tool call, WAIT for the result before making another tool call
@@ -112,17 +104,6 @@ orchestrator_agent = LlmAgent(
          * For native balance: address and network
          * For token balance: address, token symbol, and network
        - Wait for balance response
-       - Present results in a clear, user-friendly format
-
-    2. **Multichain Liquidity Agent** - Get liquidity pool information
-       - Extract token pair from user query (e.g., USDC/ETH, USDT/BNB)
-       - Extract network if specified (ethereum, bnb, polygon, etc.) - default to ethereum
-       - Determine what information is needed:
-         * Pool details (TVL, reserves, pool address) - use get_liquidity_pool
-         * APY information - use get_pool_apy
-         * TVL information - use get_pool_tvl
-       - Call Liquidity Agent with appropriate parameters: token_a, token_b, network
-       - Wait for liquidity response
        - Present results in a clear, user-friendly format
 
     WORKFLOW EXAMPLES:
@@ -145,33 +126,13 @@ orchestrator_agent = LlmAgent(
     - Call Balance Agent: address, token="USDC", network="ethereum"
     - Present: USDC token balance
 
-    Example 4: Multiple balance queries
+    Example 4: Multiple queries
     - User: "Check my ETH balance and USDT balance on BNB"
     - First call: Balance Agent for ETH on BNB
     - Wait for result
     - Second call: Balance Agent for USDT on BNB
     - Wait for result
     - Present: Combined results
-
-    Example 5: Liquidity pool query
-    - User: "Get liquidity for USDC/ETH pool on Ethereum"
-    - Extract: token_a="USDC", token_b="ETH", network="ethereum"
-    - Call Liquidity Agent: token_a="USDC", token_b="ETH", network="ethereum"
-    - Present: Pool details (TVL, reserves, pool address)
-
-    Example 6: Pool APY query
-    - User: "What's the APY for USDT/BNB pool on BNB?"
-    - Extract: token_a="USDT", token_b="BNB", network="bnb"
-    - Call Liquidity Agent: token_a="USDT", token_b="BNB", network="bnb"
-    - Present: APY information (current, 7-day, 30-day averages)
-
-    Example 7: Combined balance and liquidity query
-    - User: "Check my USDC balance and get USDC/ETH pool APY on Ethereum"
-    - First call: Balance Agent for USDC on Ethereum
-    - Wait for result
-    - Second call: Liquidity Agent for USDC/ETH APY on Ethereum
-    - Wait for result
-    - Present: Combined results (balance + pool APY)
 
     ADDRESS VALIDATION:
     - Wallet addresses must start with "0x" and be 42 characters long
@@ -196,12 +157,7 @@ orchestrator_agent = LlmAgent(
       * Token symbol (if applicable)
       * Balance amount with appropriate decimals
       * Wallet address (truncated for display: 0x...last4)
-    - Format liquidity results clearly with:
-      * Token pair (e.g., USDC/ETH)
-      * Network name
-      * TVL, APY, or pool details as requested
-      * Historical data if available (7-day, 30-day averages)
-    - For multiple queries, organize results by type (balances vs liquidity) or network
+    - For multiple queries, organize results by network or token type
     - If there's an error, explain it clearly and suggest alternatives
 
     IMPORTANT: Once you have received a response from an agent, do NOT call that same
@@ -210,10 +166,7 @@ orchestrator_agent = LlmAgent(
     ERROR HANDLING:
     - If balance check fails, explain the error clearly
     - Suggest checking: address format, network availability, token contract address
-    - If liquidity query fails, explain the error clearly
-    - Suggest checking: token pair format, network availability, pool existence
     - For network errors, suggest trying a different network or checking connectivity
-    - For invalid token pairs, suggest common pairs like USDC/ETH, USDT/BNB, etc.
     """,
 )
 

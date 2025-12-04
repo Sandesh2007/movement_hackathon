@@ -9,6 +9,8 @@ services:
     volumes:
       - .:/app
       - /app/venv
+    env_file:
+      - .env
     environment:
       - HOST=0.0.0.0
       - PORT=8000

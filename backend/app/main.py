@@ -7,14 +7,16 @@ agent applications, and sets up middleware and health check endpoints.
 
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
+
+# Load environment variables from .env file
+load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.agents.balance import create_balance_agent_app
-from app.agents.multichain_liquidity import create_multichain_liquidity_agent_app
-from app.agents.orchestrator import create_orchestrator_agent_app
-# from app.agents.token_research.agent_app import create_token_research_agent_app
+from app.agents.balance.agent import create_balance_agent_app
+from app.agents.orchestrator.agent import create_orchestrator_agent_app
 
 # Configuration constants
 DEFAULT_AGENTS_PORT = 8000
@@ -47,14 +49,6 @@ def register_agents(app: FastAPI) -> None:
     # Balance Agent (A2A Protocol)
     balance_agent_app = create_balance_agent_app(card_url=f"{base_url}/balance")
     app.mount("/balance", balance_agent_app.build())
-    
-    # Multi-Chain Liquidity Agent (A2A Protocol)
-    liquidity_agent_app = create_multichain_liquidity_agent_app(card_url=f"{base_url}/liquidity")
-    app.mount("/liquidity", liquidity_agent_app.build())
-    
-    # Token Research Agent (A2A Protocol)
-    # token_research_agent_app = create_token_research_agent_app(card_url=f"{base_url}/token-research")
-    # app.mount("/token-research", token_research_agent_app.build())
     
     # Orchestrator Agent (AG-UI ADK Protocol)
     orchestrator_agent_app = create_orchestrator_agent_app()
