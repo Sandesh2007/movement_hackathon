@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Movement App",
-  description: "Movement App",
+  title: "Movement Nexus - AI-Powered DeFi Gateway",
+  description: "Multi-agent AI platform for seamless DeFi operations on Movement Network",
 };
 
 export default function RootLayout({

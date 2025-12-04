@@ -37,10 +37,10 @@ export function Sidebar() {
       {/* Logo */}
       <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
         <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-          Movement
+          Movement Nexus
         </h1>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          Agent Workspace
+          AI-Powered DeFi Gateway
         </p>
       </div>
 
@@ -54,8 +54,8 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`block rounded-lg px-3 py-2 text-sm transition-colors ${isActive
-                    ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
-                    : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
+                  : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   }`}
               >
                 {item.label}

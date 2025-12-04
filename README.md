@@ -1,4 +1,17 @@
-# movement_hackathon
+# Movement Nexus
+
+**Your AI-Powered Gateway to Movement Network DeFi**
+
+Multi-agent AI platform orchestrating 9 specialized agents for seamless DeFi operations on Movement Network. Built for the Movement M1 Hackathon.
+
+## Features
+
+- 🤖 **9 Specialized AI Agents**: Bridge, OrderBook, Prediction, Liquidity, Yield Optimizer, Lending, Bitcoin DeFi, Stablecoin, Analytics
+- 🎯 **Intelligent Orchestration**: Gemini-powered orchestrator coordinates all agents seamlessly
+- 🔗 **Multi-Protocol Architecture**: AG-UI Protocol (frontend ↔ orchestrator) + A2A Protocol (orchestrator ↔ agents)
+- ⚡ **LangGraph-Powered**: Each agent uses LangGraph for sophisticated reasoning
+- 🌐 **Full-Stack Integration**: Next.js frontend + FastAPI backend
+- 🔐 **Privy Authentication**: Secure wallet connection and user management
 
 ## How to Run
 
@@ -204,23 +217,41 @@ Both services will be available:
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000
 
-## Features
+## Agent Ecosystem
+
+### Infrastructure
+- **Balance Agent** - Multi-chain cryptocurrency balance checking
+- **Bridge Agent** - Cross-chain asset bridging via Movement Bridge
+
+### Trading
+- **OrderBook Agent** - ClobX DEX trading (limit/market orders)
+- **Prediction Agent** - BRKT prediction markets
+
+### DeFi
+- **Liquidity Agent** - Meridian & Coral Finance pool management
+- **Yield Optimizer Agent** - Canopy yield marketplace optimization
+- **Lending Agent** - MovePosition & Echelon lending/borrowing
+- **Bitcoin DeFi Agent** - Avalon Labs Bitcoin DeFi operations
+- **Stablecoin Agent** - Ethena stablecoin protocol
+
+### Analytics
+- **Analytics Agent** - Flipside protocol analytics and reporting
+
+## Tech Stack
 
 ### Frontend
-- ✅ Next.js 16 with App Router
+- ✅ Next.js 15 with App Router
 - ✅ TypeScript
 - ✅ Tailwind CSS
-- ✅ PWA Support
+- ✅ CopilotKit for AI chat interface
 - ✅ Privy Authentication
-- ✅ Prettier Code Formatting
+- ✅ PWA Support
 
 ### Backend
 - ✅ FastAPI with async support
-- ✅ Type hints and Pydantic validation
-- ✅ CORS configuration for frontend integration
-- ✅ Modular architecture
-- ✅ Black code formatting
-- ✅ Ruff linting
-- ✅ Pytest testing
-- ✅ pyproject.toml for dependency management
-- ✅ Docker support for development
+- ✅ LangGraph for agent orchestration
+- ✅ OpenAI GPT-4 for specialized agents
+- ✅ Google Gemini 2.5 Pro for orchestrator
+- ✅ A2A Protocol for agent-to-agent communication
+- ✅ AG-UI Protocol for frontend integration
+- ✅ Docker support

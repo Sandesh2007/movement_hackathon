@@ -1,6 +1,8 @@
-# Movement Backend
+# Movement Nexus - Backend
 
-FastAPI backend for Movement Hackathon project.
+**AI-Powered Multi-Agent Backend for Movement Network DeFi**
+
+FastAPI backend orchestrating 9 specialized AI agents using LangGraph, A2A Protocol, and AG-UI Protocol.
 
 ## Setup
 

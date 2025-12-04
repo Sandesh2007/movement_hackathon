@@ -1,6 +1,7 @@
 {
-  "name": "frontend",
+  "name": "movement-nexus-frontend",
   "version": "0.1.0",
+  "description": "AI-Powered Gateway to Movement Network DeFi - Frontend",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
