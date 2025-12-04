@@ -19,8 +19,8 @@ export default function Home() {
     }
   }, [ready, authenticated, router]);
 
-  // Show loading while checking authentication or redirecting
-  if (!ready || authenticated) {
+  // Show loading while checking authentication status
+  if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
         <div className="text-center">
