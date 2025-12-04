@@ -1,0 +1,63 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: movement-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/venv
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=true
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - API_V1_PREFIX=/api/v1
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: movement-backend-test
+    volumes:
+      - .:/app
+      - /app/venv
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=true
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - API_V1_PREFIX=/api/v1
+    command: pytest -v --tb=short
+    profiles:
+      - test
+
+  format:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: movement-backend-format
+    volumes:
+      - .:/app
+      - /app/venv
+    command: black app tests
+    profiles:
+      - format
+
+  lint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: movement-backend-lint
+    volumes:
+      - .:/app
+      - /app/venv
+    command: ruff check app tests
+    profiles:
+      - lint
+
