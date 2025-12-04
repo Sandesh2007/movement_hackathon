@@ -16,6 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.agents.balance.agent import create_balance_agent_app
+from app.agents.bridge.agent import create_bridge_agent_app
+from app.agents.orderbook.agent import create_orderbook_agent_app
+from app.agents.prediction.agent import create_prediction_agent_app
+from app.agents.liquidity.agent import create_liquidity_agent_app
+from app.agents.yield_optimizer.agent import create_yield_optimizer_agent_app
+from app.agents.lending.agent import create_lending_agent_app
+from app.agents.bitcoin_defi.agent import create_bitcoin_defi_agent_app
+from app.agents.stablecoin.agent import create_stablecoin_agent_app
+from app.agents.analytics.agent import create_analytics_agent_app
 from app.agents.orchestrator.agent import create_orchestrator_agent_app
 
 # Configuration constants
@@ -49,6 +58,42 @@ def register_agents(app: FastAPI) -> None:
     # Balance Agent (A2A Protocol)
     balance_agent_app = create_balance_agent_app(card_url=f"{base_url}/balance")
     app.mount("/balance", balance_agent_app.build())
+    
+    # Bridge Agent (A2A Protocol)
+    bridge_agent_app = create_bridge_agent_app(card_url=f"{base_url}/bridge")
+    app.mount("/bridge", bridge_agent_app.build())
+    
+    # OrderBook Agent (A2A Protocol)
+    orderbook_agent_app = create_orderbook_agent_app(card_url=f"{base_url}/orderbook")
+    app.mount("/orderbook", orderbook_agent_app.build())
+    
+    # Prediction Agent (A2A Protocol)
+    prediction_agent_app = create_prediction_agent_app(card_url=f"{base_url}/prediction")
+    app.mount("/prediction", prediction_agent_app.build())
+    
+    # Liquidity Agent (A2A Protocol)
+    liquidity_agent_app = create_liquidity_agent_app(card_url=f"{base_url}/liquidity")
+    app.mount("/liquidity", liquidity_agent_app.build())
+    
+    # Yield Optimizer Agent (A2A Protocol)
+    yield_optimizer_agent_app = create_yield_optimizer_agent_app(card_url=f"{base_url}/yield_optimizer")
+    app.mount("/yield_optimizer", yield_optimizer_agent_app.build())
+    
+    # Lending Agent (A2A Protocol)
+    lending_agent_app = create_lending_agent_app(card_url=f"{base_url}/lending")
+    app.mount("/lending", lending_agent_app.build())
+    
+    # Bitcoin DeFi Agent (A2A Protocol)
+    bitcoin_defi_agent_app = create_bitcoin_defi_agent_app(card_url=f"{base_url}/bitcoin_defi")
+    app.mount("/bitcoin_defi", bitcoin_defi_agent_app.build())
+    
+    # Stablecoin Agent (A2A Protocol)
+    stablecoin_agent_app = create_stablecoin_agent_app(card_url=f"{base_url}/stablecoin")
+    app.mount("/stablecoin", stablecoin_agent_app.build())
+    
+    # Analytics Agent (A2A Protocol)
+    analytics_agent_app = create_analytics_agent_app(card_url=f"{base_url}/analytics")
+    app.mount("/analytics", analytics_agent_app.build())
     
     # Orchestrator Agent (AG-UI ADK Protocol)
     orchestrator_agent_app = create_orchestrator_agent_app()

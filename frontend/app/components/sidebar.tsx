@@ -21,9 +21,15 @@ export function Sidebar() {
 
   const agents = [
     { name: "Balance Agent", description: "Check cryptocurrency balances" },
-    { name: "Swap Agent", description: "Swap tokens across chains" },
-    { name: "Bridge Agent", description: "Bridge assets between chains" },
-    { name: "Market Analyzer", description: "Analyze market conditions" },
+    { name: "Bridge Agent", description: "Cross-chain asset bridging" },
+    { name: "OrderBook Agent", description: "Trade on ClobX DEX" },
+    { name: "Prediction Agent", description: "BRKT prediction markets" },
+    { name: "Liquidity Agent", description: "Manage liquidity pools" },
+    { name: "Yield Optimizer", description: "Optimize yield strategies" },
+    { name: "Lending Agent", description: "Lending & borrowing" },
+    { name: "Bitcoin DeFi", description: "Bitcoin DeFi operations" },
+    { name: "Stablecoin Agent", description: "Stablecoin management" },
+    { name: "Analytics Agent", description: "Protocol analytics" },
   ];
 
   return (
@@ -47,11 +53,10 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
-                  isActive
+                className={`block rounded-lg px-3 py-2 text-sm transition-colors ${isActive
                     ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
                     : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>

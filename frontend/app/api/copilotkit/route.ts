@@ -20,10 +20,19 @@ import { A2AMiddlewareAgent } from "@ag-ui/a2a-middleware";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
-  const balanceAgentUrl =
-    process.env.BALANCE_AGENT_URL || "http://localhost:8000/balance";
-  const orchestratorUrl =
-    process.env.ORCHESTRATOR_URL || "http://localhost:8000/orchestrator";
+  // Agent URLs - all Movement Network agents
+  const balanceAgentUrl = process.env.BALANCE_AGENT_URL || "http://localhost:8000/balance";
+  const bridgeAgentUrl = process.env.BRIDGE_AGENT_URL || "http://localhost:8000/bridge";
+  const orderbookAgentUrl = process.env.ORDERBOOK_AGENT_URL || "http://localhost:8000/orderbook";
+  const predictionAgentUrl = process.env.PREDICTION_AGENT_URL || "http://localhost:8000/prediction";
+  const liquidityAgentUrl = process.env.LIQUIDITY_AGENT_URL || "http://localhost:8000/liquidity";
+  const yieldOptimizerAgentUrl = process.env.YIELD_OPTIMIZER_AGENT_URL || "http://localhost:8000/yield_optimizer";
+  const lendingAgentUrl = process.env.LENDING_AGENT_URL || "http://localhost:8000/lending";
+  const bitcoinDefiAgentUrl = process.env.BITCOIN_DEFI_AGENT_URL || "http://localhost:8000/bitcoin_defi";
+  const stablecoinAgentUrl = process.env.STABLECOIN_AGENT_URL || "http://localhost:8000/stablecoin";
+  const analyticsAgentUrl = process.env.ANALYTICS_AGENT_URL || "http://localhost:8000/analytics";
+  
+  const orchestratorUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8000/orchestrator";
 
   // ============================================
   // AUTHENTICATION: Orchestrator (if needed)
@@ -49,11 +58,22 @@ export async function POST(request: NextRequest) {
   });
 
   // A2A Middleware: Wraps orchestrator and injects send_message_to_a2a_agent tool
-  // This allows orchestrator to communicate with A2A agents transparently
+  // This allows orchestrator to communicate with all A2A agents transparently
   const a2aMiddlewareAgent = new A2AMiddlewareAgent({
     description:
-      "Web3 and cryptocurrency orchestrator with specialized agents for blockchain operations",
-    agentUrls: [balanceAgentUrl],
+      "Web3 and cryptocurrency orchestrator with specialized agents for Movement Network operations",
+    agentUrls: [
+      balanceAgentUrl,
+      bridgeAgentUrl,
+      orderbookAgentUrl,
+      predictionAgentUrl,
+      liquidityAgentUrl,
+      yieldOptimizerAgentUrl,
+      lendingAgentUrl,
+      bitcoinDefiAgentUrl,
+      stablecoinAgentUrl,
+      analyticsAgentUrl,
+    ],
     orchestrationAgent,
     instructions: `
       You are a Web3 and cryptocurrency orchestrator agent. Your role is to coordinate
@@ -66,6 +86,60 @@ export async function POST(request: NextRequest) {
          - Can check native token balances (ETH, BNB, MATIC, etc.)
          - Can check ERC-20 token balances (USDC, USDT, DAI, etc.)
          - Requires wallet address (0x format) and optional network specification
+
+      2. **Bridge Agent** (LangGraph) - Cross-chain asset bridging via Movement Bridge
+         - Bridges assets between Ethereum, BNB, Polygon and Movement Network
+         - Supports native tokens and ERC-20 tokens
+         - Can initiate bridge transactions, check status, and estimate fees
+         - Requires source chain, destination chain, asset, amount, and recipient address
+
+      3. **OrderBook Agent** (LangGraph) - Trading on ClobX on-chain order book
+         - Place limit and market orders on Movement Network's ClobX DEX
+         - Cancel existing orders and check order status
+         - View order book depth and spreads
+         - Requires trading pair, side (buy/sell), price (for limit), and quantity
+
+      4. **Prediction Agent** (LangGraph) - BRKT prediction markets
+         - Create new prediction markets
+         - Place predictions on existing markets
+         - Check market odds and status
+         - Resolve markets (for creators)
+
+      5. **Liquidity Agent** (LangGraph) - Liquidity management for Meridian and Coral Finance
+         - Add/remove liquidity from pools
+         - Check pool information (APY, TVL, fees)
+         - Calculate impermanent loss
+         - Requires pool name and token amounts
+
+      6. **Yield Optimizer Agent** (LangGraph) - Canopy yield marketplace
+         - Find best yield opportunities for assets
+         - Deposit to and withdraw from yield vaults
+         - Track APY history
+         - Auto-compounding strategies
+
+      7. **Lending Agent** (LangGraph) - MovePosition and Echelon lending protocols
+         - Supply collateral and borrow assets
+         - Repay loans
+         - Check health factors and liquidation risks
+         - Requires asset, amount, and protocol selection
+
+      8. **Bitcoin DeFi Agent** (LangGraph) - Avalon Labs Bitcoin DeFi
+         - Wrap/unwrap BTC for DeFi use
+         - Discover Bitcoin DeFi products
+         - Stake BTC for yields
+         - Requires BTC amounts
+
+      9. **Stablecoin Agent** (LangGraph) - Ethena stablecoin protocol
+         - Mint synthetic stablecoins (USDe)
+         - Redeem stablecoins for collateral
+         - Check peg stability
+         - Monitor collateral ratios
+
+      10. **Analytics Agent** (LangGraph) - Flipside analytics
+          - Get protocol TVL and metrics
+          - Analyze trading volumes
+          - Track user statistics
+          - Generate custom reports
 
       CRITICAL CONSTRAINTS:
       - You MUST call agents ONE AT A TIME, never make multiple tool calls simultaneously

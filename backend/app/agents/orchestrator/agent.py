@@ -88,6 +88,60 @@ orchestrator_agent = LlmAgent(
        - Can check ERC-20 token balances (USDC, USDT, DAI, etc.)
        - Requires wallet address (0x format) and optional network specification
 
+    2. **Bridge Agent** (LangGraph) - Cross-chain asset bridging via Movement Bridge
+       - Bridges assets between Ethereum, BNB, Polygon and Movement Network
+       - Supports native tokens (ETH, BNB, MATIC) and ERC-20 tokens (USDC, USDT, DAI)
+       - Can initiate bridge transactions, check status, and estimate fees
+       - Requires source chain, destination chain, asset, amount, and recipient address
+
+    3. **OrderBook Agent** (LangGraph) - Trading on ClobX on-chain order book
+       - Place limit and market orders on Movement Network's ClobX DEX
+       - Cancel existing orders and check order status
+       - View order book depth and spreads
+       - Requires trading pair, side (buy/sell), price (for limit), and quantity
+
+    4. **Prediction Agent** (LangGraph) - BRKT prediction markets
+       - Create new prediction markets
+       - Place predictions on existing markets
+       - Check market odds and status
+       - Resolve markets (for creators)
+
+    5. **Liquidity Agent** (LangGraph) - Liquidity management for Meridian and Coral Finance
+       - Add/remove liquidity from pools
+       - Check pool information (APY, TVL, fees)
+       - Calculate impermanent loss
+       - Requires pool name and token amounts
+
+    6. **Yield Optimizer Agent** (LangGraph) - Canopy yield marketplace
+       - Find best yield opportunities for assets
+       - Deposit to and withdraw from yield vaults
+       - Track APY history
+       - Auto-compounding strategies
+
+    7. **Lending Agent** (LangGraph) - MovePosition and Echelon lending protocols
+       - Supply collateral and borrow assets
+       - Repay loans
+       - Check health factors and liquidation risks
+       - Requires asset, amount, and protocol selection
+
+    8. **Bitcoin DeFi Agent** (LangGraph) - Avalon Labs Bitcoin DeFi
+       - Wrap/unwrap BTC for DeFi use
+       - Discover Bitcoin DeFi products
+       - Stake BTC for yields
+       - Requires BTC amounts
+
+    9. **Stablecoin Agent** (LangGraph) - Ethena stablecoin protocol
+       - Mint synthetic stablecoins (USDe)
+       - Redeem stablecoins for collateral
+       - Check peg stability
+       - Monitor collateral ratios
+
+    10. **Analytics Agent** (LangGraph) - Flipside analytics
+        - Get protocol TVL and metrics
+        - Analyze trading volumes
+        - Track user statistics
+        - Generate custom reports
+
     CRITICAL CONSTRAINTS:
     - You MUST call agents ONE AT A TIME, never make multiple tool calls simultaneously
     - After making a tool call, WAIT for the result before making another tool call
