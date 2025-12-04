@@ -4,7 +4,13 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function Sidebar() {
+export function Sidebar({
+  isOpen,
+  onClose,
+}: {
+  isOpen?: boolean;
+  onClose?: () => void;
+}) {
   const { user } = usePrivy();
   const { wallets } = useWallets();
   const pathname = usePathname();
@@ -33,59 +39,95 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Logo */}
-      <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
-        <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-          Movement Nexus
-        </h1>
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          AI-Powered DeFi Gateway
-        </p>
-      </div>
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <nav className="space-y-2">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block rounded-lg px-3 py-2 text-sm transition-colors ${isActive
-                  ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
-                  : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                  }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Sidebar Container */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-900 md:static md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+              Movement Nexus
+            </h1>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              AI-Powered DeFi Gateway
+            </p>
+          </div>
+          {/* Close button for mobile */}
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800 md:hidden"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
-        {/* Available Agents */}
-        <div className="mt-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            AVAILABLE AGENTS
-          </h2>
-          <div className="space-y-2">
-            {agents.map((agent) => (
-              <div
-                key={agent.name}
-                className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
-              >
-                <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
-                  {agent.name}
-                </p>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  {agent.description}
-                </p>
-              </div>
-            ))}
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => onClose?.()}
+                  className={`block rounded-lg px-3 py-2 text-sm transition-colors ${isActive
+                      ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
+                      : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Available Agents */}
+          <div className="mt-8">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              AVAILABLE AGENTS
+            </h2>
+            <div className="space-y-2">
+              {agents.map((agent) => (
+                <div
+                  key={agent.name}
+                  className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
+                >
+                  <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                    {agent.name}
+                  </p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    {agent.description}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
