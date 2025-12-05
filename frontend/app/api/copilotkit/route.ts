@@ -20,19 +20,26 @@ import { A2AMiddlewareAgent } from "@ag-ui/a2a-middleware";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
+  // Get base URL - prioritize NEXT_PUBLIC_BASE_URL for Railway/production
+  // Remove trailing slash if present to avoid double slashes
+  const rawBaseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
+  const baseUrl = rawBaseUrl.replace(/\/$/, "");
+
   // Agent URLs - all Movement Network agents
-  const balanceAgentUrl = process.env.BALANCE_AGENT_URL || "http://localhost:8000/balance";
-  const bridgeAgentUrl = process.env.BRIDGE_AGENT_URL || "http://localhost:8000/bridge";
-  const orderbookAgentUrl = process.env.ORDERBOOK_AGENT_URL || "http://localhost:8000/orderbook";
-  const predictionAgentUrl = process.env.PREDICTION_AGENT_URL || "http://localhost:8000/prediction";
-  const liquidityAgentUrl = process.env.LIQUIDITY_AGENT_URL || "http://localhost:8000/liquidity";
-  const yieldOptimizerAgentUrl = process.env.YIELD_OPTIMIZER_AGENT_URL || "http://localhost:8000/yield_optimizer";
-  const lendingAgentUrl = process.env.LENDING_AGENT_URL || "http://localhost:8000/lending";
-  const bitcoinDefiAgentUrl = process.env.BITCOIN_DEFI_AGENT_URL || "http://localhost:8000/bitcoin_defi";
-  const stablecoinAgentUrl = process.env.STABLECOIN_AGENT_URL || "http://localhost:8000/stablecoin";
-  const analyticsAgentUrl = process.env.ANALYTICS_AGENT_URL || "http://localhost:8000/analytics";
-  
-  const orchestratorUrl = process.env.ORCHESTRATOR_URL || "http://localhost:8000/orchestrator";
+  const balanceAgentUrl = `${baseUrl}/balance`;
+  const bridgeAgentUrl = `${baseUrl}/bridge`;
+  const orderbookAgentUrl = `${baseUrl}/orderbook`;
+  const predictionAgentUrl = `${baseUrl}/prediction`;
+  const liquidityAgentUrl = `${baseUrl}/liquidity`;
+  const yieldOptimizerAgentUrl = `${baseUrl}/yield_optimizer`;
+  const lendingAgentUrl = `${baseUrl}/lending`;
+  const bitcoinDefiAgentUrl = `${baseUrl}/bitcoin_defi`;
+  const stablecoinAgentUrl = `${baseUrl}/stablecoin`;
+  const analyticsAgentUrl = `${baseUrl}/analytics`;
+  // Orchestrator URL needs trailing slash to avoid 307 redirect (POST -> GET conversion)
+  // This works for both local (localhost:8000) and Railway (https://backend.railway.app)
+  const orchestratorUrl = `${baseUrl}/orchestrator/`;
 
   // ============================================
   // AUTHENTICATION: Orchestrator (if needed)
