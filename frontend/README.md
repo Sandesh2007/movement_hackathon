@@ -16,18 +16,21 @@ Next.js frontend for Movement Nexus, featuring CopilotKit-powered AI chat interf
 ## Getting Started
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Set up environment variables:**
    Create a `.env.local` file:
+
    ```bash
    NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
    NEXT_PUBLIC_PRIVY_CLIENT_ID=your-privy-client-id
    ```
 
 3. **Run the development server:**
+
    ```bash
    npm run dev
    ```

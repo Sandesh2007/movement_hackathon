@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Movement Nexus - AI-Powered DeFi Gateway",
-  description: "Multi-agent AI platform for seamless DeFi operations on Movement Network",
+  description:
+    "Multi-agent AI platform for seamless DeFi operations on Movement Network",
   manifest: "/manifest.json",
   themeColor: "#000000",
   appleWebApp: {

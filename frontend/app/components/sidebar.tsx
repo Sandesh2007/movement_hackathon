@@ -50,8 +50,9 @@ export function Sidebar({
 
       {/* Sidebar Container */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-900 md:static md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-900 md:static md:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* Logo */}
         <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
@@ -94,10 +95,11 @@ export function Sidebar({
                   key={item.href}
                   href={item.href}
                   onClick={() => onClose?.()}
-                  className={`block rounded-lg px-3 py-2 text-sm transition-colors ${isActive
+                  className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isActive
                       ? "bg-purple-100 font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
                       : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    }`}
+                  }`}
                 >
                   {item.label}
                 </Link>
