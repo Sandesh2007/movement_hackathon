@@ -2,7 +2,13 @@
 Balance Agent - Web3 Cryptocurrency Balance Checking Agent
 
 This module implements an AI-powered agent that helps users check cryptocurrency
-balances across multiple blockchain networks (Ethereum, BNB, Polygon, etc.).
+balances across multiple blockchain networks (Ethereum, BNB, Polygon, Movement Network, etc.).
+
+Movement Network support:
+- Uses Movement Indexer GraphQL API to fetch balances
+- Supports Aptos-compatible addresses (0x format)
+- Network parameter: "movement" or "aptos" (both work)
+- Fetches all fungible asset balances including native MOVE token
 
 ARCHITECTURE OVERVIEW:
 ----------------------
@@ -69,18 +75,21 @@ Mounted mode:
 
 NOTES:
 ------
-- Balance fetching tools are currently stubbed (TODO: implement Web3 integration)
+- Movement Network balance fetching is fully implemented using the indexer API
+- Other networks (Ethereum, BNB, etc.) are stubbed and will be implemented later
 - Uses in-memory services (sessions, artifacts, memory) - not persistent
 - Error handling includes user-friendly messages for common issues
 - Supports streaming responses via AgentCapabilities
+- Movement Network uses Sentio indexer by default (configurable via MOVEMENT_INDEXER_URL)
 """
 
 import os
 import uuid
 import json
-from typing import Any, List
+from typing import Any, List, Dict, Optional
 
 import uvicorn
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -123,6 +132,33 @@ ENV_ITINERARY_PORT = "ITINERARY_PORT"
 ENV_RENDER_EXTERNAL_URL = "RENDER_EXTERNAL_URL"
 ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
 ENV_OPENAI_MODEL = "OPENAI_MODEL"
+ENV_MOVEMENT_INDEXER_URL = "MOVEMENT_INDEXER_URL"
+
+# Movement Indexer constants
+SENTIO_INDEXER = "https://rpc.sentio.xyz/movement-indexer/v1/graphql"
+MOVEMENT_INDEXER_MAINNET = "https://indexer.mainnet.movementnetwork.xyz/v1/graphql"
+MOVEMENT_INDEXER_TESTNET = "https://indexer.testnet.movementnetwork.xyz/v1/graphql"
+
+# GraphQL query for Movement balances
+MOVEMENT_BALANCES_QUERY = """
+query GetUserTokenBalances($ownerAddress: String!) {
+  current_fungible_asset_balances(
+    where: {
+      owner_address: {_eq: $ownerAddress},
+      amount: {_gt: 0}
+    }
+  ) {
+    asset_type
+    amount
+    last_transaction_timestamp
+    metadata {
+      name
+      symbol
+      decimals
+    }
+  }
+}
+"""
 
 # Message types
 MESSAGE_TYPE_AI = "ai"
@@ -147,14 +183,22 @@ def get_system_prompt() -> str:
     return """You are a helpful Web3 assistant specializing in checking cryptocurrency balances.
 
 When users ask about balances:
-1. Extract the wallet address if provided (format: 0x...)
-2. Determine which network they're asking about (default to ethereum if not specified)
-3. For token queries, identify the token symbol (USDC, USDT, DAI, etc.)
+1. Extract the wallet address if provided (format: 0x... or Aptos format)
+2. Determine which network they're asking about:
+   - For Movement Network: use "movement" or "aptos" (they are the same)
+   - Default to ethereum if not specified
+3. For token queries, identify the token symbol (USDC, USDT, DAI, MOVE, etc.)
 4. Use the appropriate tool to fetch balance data
 5. Present results in a clear, user-friendly format
 
+Special handling for Movement Network:
+- Movement Network uses Aptos-compatible addresses
+- When user says "get my balance" or "give my balance" on Movement, use the wallet address they provided
+- Movement addresses can be in 0x format (Ethereum-style) or Aptos format - both work
+- The network parameter should be "movement" or "aptos" for Movement Network
+
 If the user doesn't provide an address, politely ask for it.
-Always validate that addresses start with 0x and are 42 characters long.
+Addresses should start with 0x and contain valid hexadecimal characters.
 If there's an error, explain it clearly and suggest alternatives."""
 
 
@@ -173,15 +217,19 @@ def create_agent_skill() -> AgentSkill:
     return AgentSkill(
         id="balance_agent",
         name="Balance Agent",
-        description="Balance Agent for checking crypto balances on multiple chains",
-        tags=["balance", "ethereum", "bnb", "web3", "crypto"],
+        description="Balance Agent for checking crypto balances on multiple chains including Movement Network",
+        tags=["balance", "ethereum", "bnb", "movement", "aptos", "web3", "crypto"],
         examples=[
             "get balance",
+            "get my balance",
+            "give my balance",
+            "get balance on movement",
             "get balance on ethereum",
             "get balance of 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
             "get balance of usdc on bnb",
             "get balance of usdc on ethereum",
             "check my USDT balance",
+            "get my balance on movement",
         ],
     )
 
@@ -206,19 +254,114 @@ def create_agent_card(port: int) -> AgentCard:
     )
 
 
+def get_movement_indexer_url() -> str:
+    """Get Movement Indexer URL from environment or default to Sentio.
+    
+    Returns:
+        Movement Indexer GraphQL URL
+    """
+    return os.getenv(ENV_MOVEMENT_INDEXER_URL, SENTIO_INDEXER)
+
+
+def fetch_movement_balances(address: str) -> Dict[str, Any]:
+    """Fetch balances from Movement Network using the indexer API.
+    
+    Args:
+        address: Wallet address to check
+        
+    Returns:
+        Dictionary with balance information
+    """
+    try:
+        indexer_url = get_movement_indexer_url()
+        variables = {"ownerAddress": address}
+        payload = {
+            "query": MOVEMENT_BALANCES_QUERY,
+            "variables": variables,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        response = requests.post(
+            indexer_url,
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "error": f"Indexer API error: {response.status_code}",
+            }
+        data = response.json()
+        if "errors" in data:
+            return {
+                "success": False,
+                "error": f"GraphQL errors: {json.dumps(data['errors'])}",
+            }
+        balances = data.get("data", {}).get("current_fungible_asset_balances", [])
+        return {
+            "success": True,
+            "balances": balances,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+        }
+
+
+def format_movement_balance_response(balances_data: Dict[str, Any], address: str) -> str:
+    """Format Movement balance data into a user-friendly string.
+    
+    Args:
+        balances_data: Dictionary with balance data from indexer
+        address: Wallet address
+        
+    Returns:
+        Formatted balance string
+    """
+    if not balances_data.get("success", False):
+        return f"Error fetching Movement balance: {balances_data.get('error', 'Unknown error')}"
+    balances = balances_data.get("balances", [])
+    if not balances:
+        return f"Address {address} has no token balances on Movement Network."
+    result_lines = [f"Movement Network balances for {address}:\n"]
+    for idx, balance in enumerate(balances, 1):
+        asset_type = balance.get("asset_type", "Unknown")
+        amount = balance.get("amount", "0")
+        metadata = balance.get("metadata", {})
+        name = metadata.get("name", "Unknown Token")
+        symbol = metadata.get("symbol", "Unknown")
+        decimals = int(metadata.get("decimals", 18))
+        try:
+            amount_int = int(amount)
+            formatted_balance = amount_int / (10 ** decimals)
+            result_lines.append(
+                f"{idx}. {name} ({symbol}): {formatted_balance:.6f} {symbol}"
+            )
+        except (ValueError, TypeError):
+            result_lines.append(f"{idx}. {name} ({symbol}): {amount} (raw)")
+    return "\n".join(result_lines)
+
+
 @tool
 def get_balance(address: str, network: str = DEFAULT_NETWORK) -> str:
     """Get the balance of a cryptocurrency address on a specific network.
 
     Args:
-        address: The cryptocurrency wallet address (0x...)
-        network: The blockchain network (ethereum, bnb, polygon, etc.)
+        address: The cryptocurrency wallet address (0x... or Aptos format)
+        network: The blockchain network (ethereum, bnb, polygon, movement, aptos, etc.)
 
     Returns:
         The balance as a string
     """
-    # TODO: Implement actual balance fetching logic with Web3
-    return f"Balance for {address} on {network}: 0.0 ETH"
+    network_lower = network.lower()
+    if network_lower in ["movement", "aptos"]:
+        balances_data = fetch_movement_balances(address)
+        return format_movement_balance_response(balances_data, address)
+    return f"Balance for {address} on {network}: Not implemented yet (only Movement Network is currently supported)"
 
 
 @tool
@@ -226,15 +369,35 @@ def get_token_balance(address: str, token: str, network: str = DEFAULT_NETWORK) 
     """Get the balance of a specific token for an address on a network.
 
     Args:
-        address: The cryptocurrency wallet address (0x...)
-        token: The token symbol (e.g., USDC, USDT, DAI)
-        network: The blockchain network (ethereum, bnb, polygon, etc.)
+        address: The cryptocurrency wallet address (0x... or Aptos format)
+        token: The token symbol (e.g., USDC, USDT, DAI, MOVE)
+        network: The blockchain network (ethereum, bnb, polygon, movement, aptos, etc.)
 
     Returns:
         The token balance as a string
     """
-    # TODO: Implement actual token balance fetching logic
-    return f"Token balance for {address}: 0.0 {token.upper()} on {network}"
+    network_lower = network.lower()
+    if network_lower in ["movement", "aptos"]:
+        balances_data = fetch_movement_balances(address)
+        if not balances_data.get("success", False):
+            return f"Error fetching Movement balance: {balances_data.get('error', 'Unknown error')}"
+        balances = balances_data.get("balances", [])
+        token_upper = token.upper()
+        for balance in balances:
+            metadata = balance.get("metadata", {})
+            symbol = metadata.get("symbol", "").upper()
+            if symbol == token_upper or token_upper in symbol:
+                amount = balance.get("amount", "0")
+                decimals = int(metadata.get("decimals", 18))
+                name = metadata.get("name", "Unknown Token")
+                try:
+                    amount_int = int(amount)
+                    formatted_balance = amount_int / (10 ** decimals)
+                    return f"{address} has {formatted_balance:.6f} {symbol} ({name}) on Movement Network"
+                except (ValueError, TypeError):
+                    return f"{address} has {amount} {symbol} (raw) on Movement Network"
+        return f"No {token_upper} balance found for {address} on Movement Network"
+    return f"Token balance for {address}: {token.upper()} on {network} - Not implemented yet (only Movement Network is currently supported)"
 
 
 def get_tools() -> List[Any]:
