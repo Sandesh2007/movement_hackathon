@@ -22,20 +22,21 @@ import {
   Ed25519PublicKey,
   Ed25519Signature,
   generateSigningMessageForTransaction,
+  ChainId,
 } from "@aptos-labs/ts-sdk";
 import { toHex } from "viem"
 import {useSignRawHash} from '@privy-io/react-auth/extended-chains';
-import { debugPort } from "process";
 
 interface TransferCardProps {
   data: TransferData;
   onTransferInitiate?: () => void;
 }
 
-// Movement Network configuration - Mainnet
+// Movement Network configuration - Testnet
+// Movement Network testnet uses chain ID 250 (not the standard Aptos testnet chain ID)
 const MOVEMENT_NETWORK = Network.TESTNET;
-const MOVEMENT_FULLNODE = "https://full.testnet.movementinfra.xyz/v1";
-
+const MOVEMENT_FULLNODE = "https://testnet.movementnetwork.xyz/v1";
+const MOVEMENT_CHAIN_ID = 250;
 
 const aptos = new Aptos(
   new AptosConfig({
@@ -83,54 +84,87 @@ export const TransferCard: React.FC<TransferCardProps> = ({
     setTxHash(null);
 
     try {
-      // 2) Build the raw transaction (SDK fills in seq#, chainId, gas if you let it)
+      // Get Aptos wallet from user's linked accounts
+      const aptosWallet = user?.linkedAccounts?.find(
+        (a) => a.type === "wallet" && a.chainType === "aptos"
+      ) as any;
 
-const aptosWallet = user?.linkedAccounts?.find(
-  (a) => a.type === "wallet" && a.chainType === "aptos"
-) as any;
+      if (!aptosWallet) {
+        throw new Error("Aptos wallet not found");
+      }
 
-debugger;
+      const senderAddress = aptosWallet.address as string;
+      const senderPubKeyWithScheme = aptosWallet.publicKey as string; // "004a4b8e35..."
+      
+      if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
+        throw new Error("Invalid public key format");
+      }
+      
+      const pubKeyNoScheme = senderPubKeyWithScheme.slice(2); // drop leading "00"
 
-const senderAddress = aptosWallet.address as string;
-const senderPubKeyWithScheme = aptosWallet.publicKey as string; // "004a4b8e35..."
-const pubKeyNoScheme = senderPubKeyWithScheme.slice(2);           // drop leading "00"
+      // Validate recipient address
+      if (!toAddress || !toAddress.startsWith("0x") || toAddress.length !== 66) {
+        throw new Error("Invalid recipient address. Must be 66 characters and start with 0x.");
+      }
 
+      // Convert amount to Octas (Aptos uses 8 decimals)
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        throw new Error("Invalid amount. Please enter a positive number.");
+      }
+      const amountInOctas = Math.floor(parsedAmount * 100000000);
 
-const rawTxn = await aptos.transaction.build.simple({
-  sender: senderAddress,
-  data: {
-    function: '0x1::coin::transfer',
-    typeArguments: ['0x1::aptos_coin::AptosCoin'],
-    functionArguments: ['0x31c8dbb5f226f6df7d276eec91de31cd3152a90ee2ca45767b5a7f5a62cdf25', 1] // amount in Octas
-  }
-});
+      // Build the raw transaction
+      const rawTxn = await aptos.transaction.build.simple({
+        sender: senderAddress,
+        data: {
+          function: '0x1::coin::transfer',
+          typeArguments: ['0x1::aptos_coin::AptosCoin'],
+          functionArguments: [toAddress, amountInOctas]
+        }
+      });
 
-const message = generateSigningMessageForTransaction(rawTxn);
-const hash = toHex(message);
-const signatureResponse = await signRawHash({
-  address: senderAddress,
-  chainType: 'aptos',
-  hash: hash
-});
+      // Override chain ID to match Movement Network testnet (250)
+      // The SDK uses Aptos testnet chain ID, but Movement uses 250
+      // Create a proper ChainId instance and replace the chain_id in rawTransaction
+      const txnObj = rawTxn as any;
+      if (txnObj.rawTransaction) {
+        // Create a new ChainId instance with the Movement Network chain ID
+        const movementChainId = new ChainId(MOVEMENT_CHAIN_ID);
+        txnObj.rawTransaction.chain_id = movementChainId;
+      }
 
-const publicKey = new Ed25519PublicKey(`0x${pubKeyNoScheme}`);      // already 0x‑prefixed
-const sig = new Ed25519Signature(signatureResponse.signature.slice(2));         // drop 0x from sig
+      // Generate signing message and hash
+      const message = generateSigningMessageForTransaction(rawTxn);
+      const hash = toHex(message);
 
-const senderAuthenticator = new AccountAuthenticatorEd25519(publicKey, sig)
+      // Sign the hash using Privy's signRawHash
+      const signatureResponse = await signRawHash({
+        address: senderAddress,
+        chainType: 'aptos',
+        hash: hash
+      });
 
-const pending = await aptos.transaction.submit.simple({
-  transaction: rawTxn,
-  senderAuthenticator
-});
+      // Create authenticator from signature
+      const publicKey = new Ed25519PublicKey(`0x${pubKeyNoScheme}`);
+      const sig = new Ed25519Signature(signatureResponse.signature.slice(2)); // drop 0x from sig
+      const senderAuthenticator = new AccountAuthenticatorEd25519(publicKey, sig);
 
-const executed = await aptos.waitForTransaction({
-  transactionHash: pending.hash
-});
-console.log('Executed:', executed.hash);
+      // Submit transaction
+      const pending = await aptos.transaction.submit.simple({
+        transaction: rawTxn,
+        senderAuthenticator
+      });
 
+      // Wait for transaction to be executed
+      const executed = await aptos.waitForTransaction({
+        transactionHash: pending.hash
+      });
 
+      console.log('Transaction executed:', executed.hash);
+      setTxHash(executed.hash);
+      onTransferInitiate?.();
     } catch (err: any) {
-      debugger;
       console.error("Transfer error:", err);
       setTransferError(err.message || "Transfer failed. Please try again.");
     } finally {
