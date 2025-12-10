@@ -13,16 +13,43 @@
 import React, { useState, useMemo } from "react";
 import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
 import { TransferData } from "../../types";
+import {
+  Aptos,
+  AptosConfig,
+  Network,
+  AccountAddress,
+  AccountAuthenticatorEd25519,
+  Ed25519PublicKey,
+  Ed25519Signature,
+  generateSigningMessageForTransaction,
+} from "@aptos-labs/ts-sdk";
+import { toHex } from "viem"
+import {useSignRawHash} from '@privy-io/react-auth/extended-chains';
+import { debugPort } from "process";
 
 interface TransferCardProps {
   data: TransferData;
   onTransferInitiate?: () => void;
 }
 
+// Movement Network configuration - Mainnet
+const MOVEMENT_NETWORK = Network.TESTNET;
+const MOVEMENT_FULLNODE = "https://full.testnet.movementinfra.xyz/v1";
+
+
+const aptos = new Aptos(
+  new AptosConfig({
+    network: MOVEMENT_NETWORK,
+    fullnode: MOVEMENT_FULLNODE
+  })
+);
+
 export const TransferCard: React.FC<TransferCardProps> = ({
   data,
   onTransferInitiate,
 }) => {
+  
+  const {signRawHash} = useSignRawHash();
   const { amount, token, tokenSymbol, toAddress, fromAddress, network, error } = data;
   const { user, ready, authenticated } = usePrivy();
   const [transferring, setTransferring] = useState(false);
@@ -56,63 +83,54 @@ export const TransferCard: React.FC<TransferCardProps> = ({
     setTxHash(null);
 
     try {
-      // Validate inputs
-      if (!toAddress || !toAddress.startsWith("0x")) {
-        throw new Error("Invalid recipient address");
-      }
+      // 2) Build the raw transaction (SDK fills in seq#, chainId, gas if you let it)
 
-      const transferAmount = parseFloat(amount);
-      if (isNaN(transferAmount) || transferAmount <= 0) {
-        throw new Error("Invalid transfer amount");
-      }
+const aptosWallet = user?.linkedAccounts?.find(
+  (a) => a.type === "wallet" && a.chainType === "aptos"
+) as any;
 
-      // Get wallet ID from Privy wallet
-      // For Movement/Aptos wallets, we need the actual Privy wallet ID, not the address
-      // The wallet ID is typically in the 'walletClientId' field for extended chain wallets
-      const walletId = 
-        (movementWallet as any).walletClientId || 
-        (movementWallet as any).walletId ||
-        (movementWallet as any).id || 
-        movementWallet.address;
-      
-      console.log("Wallet ID for transfer:", {
-        walletClientId: (movementWallet as any).walletClientId,
-        walletId: (movementWallet as any).walletId,
-        id: (movementWallet as any).id,
-        address: movementWallet.address,
-        using: walletId,
-      });
+debugger;
 
-      // Call server-side transfer API route
-      const transferResponse = await fetch("/api/transfer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          walletId,
-          fromAddress,
-          toAddress,
-          amount: transferAmount.toString(),
-          token: token || tokenSymbol,
-          tokenSymbol: tokenSymbol || token,
-        }),
-      });
+const senderAddress = aptosWallet.address as string;
+const senderPubKeyWithScheme = aptosWallet.publicKey as string; // "004a4b8e35..."
+const pubKeyNoScheme = senderPubKeyWithScheme.slice(2);           // drop leading "00"
 
-      if (!transferResponse.ok) {
-        const errorData = await transferResponse.json();
-        throw new Error(errorData.error || "Transfer failed");
-      }
 
-      const result = await transferResponse.json();
+const rawTxn = await aptos.transaction.build.simple({
+  sender: senderAddress,
+  data: {
+    function: '0x1::coin::transfer',
+    typeArguments: ['0x1::aptos_coin::AptosCoin'],
+    functionArguments: ['0x31c8dbb5f226f6df7d276eec91de31cd3152a90ee2ca45767b5a7f5a62cdf25', 1] // amount in Octas
+  }
+});
 
-      if (!result.success) {
-        throw new Error(result.error || "Transfer failed");
-      }
+const message = generateSigningMessageForTransaction(rawTxn);
+const hash = toHex(message);
+const signatureResponse = await signRawHash({
+  address: senderAddress,
+  chainType: 'aptos',
+  hash: hash
+});
 
-      setTxHash(result.transactionHash);
-      onTransferInitiate?.();
+const publicKey = new Ed25519PublicKey(`0x${pubKeyNoScheme}`);      // already 0x‑prefixed
+const sig = new Ed25519Signature(signatureResponse.signature.slice(2));         // drop 0x from sig
+
+const senderAuthenticator = new AccountAuthenticatorEd25519(publicKey, sig)
+
+const pending = await aptos.transaction.submit.simple({
+  transaction: rawTxn,
+  senderAuthenticator
+});
+
+const executed = await aptos.waitForTransaction({
+  transactionHash: pending.hash
+});
+console.log('Executed:', executed.hash);
+
+
     } catch (err: any) {
+      debugger;
       console.error("Transfer error:", err);
       setTransferError(err.message || "Transfer failed. Please try again.");
     } finally {
