@@ -4,10 +4,14 @@
  * TransferCard Component
  *
  * Displays transfer information and allows user to execute the transfer.
- * Shows amount, token, from/to addresses, and a transfer button.
+ * Uses server-side API route to handle Movement Network token transfers.
+ *
+ * Based on Privy Movement Network documentation:
+ * https://docs.privy.io/recipes/use-tier-2#movement
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
 import { TransferData } from "../../types";
 
 interface TransferCardProps {
@@ -20,36 +24,97 @@ export const TransferCard: React.FC<TransferCardProps> = ({
   onTransferInitiate,
 }) => {
   const { amount, token, tokenSymbol, toAddress, fromAddress, network, error } = data;
+  const { user, ready, authenticated } = usePrivy();
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
+  // Get Movement wallet from user's linked accounts
+  const movementWallet = useMemo(() => {
+    if (!ready || !authenticated || !user?.linkedAccounts) {
+      return null;
+    }
+    return user.linkedAccounts.find(
+      (account): account is WalletWithMetadata =>
+        account.type === "wallet" && account.chainType === "aptos"
+    ) || null;
+  }, [user, ready, authenticated]);
+
   const handleTransfer = async () => {
+    if (!movementWallet) {
+      setTransferError("Movement wallet not found. Please create a Movement wallet first.");
+      return;
+    }
+
+    if (!ready || !authenticated) {
+      setTransferError("Please authenticate first.");
+      return;
+    }
+
     setTransferring(true);
     setTransferError(null);
+    setTxHash(null);
 
     try {
-      // TODO: Implement actual transfer logic using Movement Network SDK
-      // For now, this is a placeholder
-      console.log("Transferring:", {
-        amount,
-        token,
-        tokenSymbol,
-        fromAddress,
-        toAddress,
-        network,
+      // Validate inputs
+      if (!toAddress || !toAddress.startsWith("0x")) {
+        throw new Error("Invalid recipient address");
+      }
+
+      const transferAmount = parseFloat(amount);
+      if (isNaN(transferAmount) || transferAmount <= 0) {
+        throw new Error("Invalid transfer amount");
+      }
+
+      // Get wallet ID from Privy wallet
+      // For Movement/Aptos wallets, we need the actual Privy wallet ID, not the address
+      // The wallet ID is typically in the 'walletClientId' field for extended chain wallets
+      const walletId = 
+        (movementWallet as any).walletClientId || 
+        (movementWallet as any).walletId ||
+        (movementWallet as any).id || 
+        movementWallet.address;
+      
+      console.log("Wallet ID for transfer:", {
+        walletClientId: (movementWallet as any).walletClientId,
+        walletId: (movementWallet as any).walletId,
+        id: (movementWallet as any).id,
+        address: movementWallet.address,
+        using: walletId,
       });
 
-      // Simulate transfer (replace with actual implementation)
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
-      // Mock transaction hash
-      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`;
-      setTxHash(mockTxHash);
-      
+      // Call server-side transfer API route
+      const transferResponse = await fetch("/api/transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          walletId,
+          fromAddress,
+          toAddress,
+          amount: transferAmount.toString(),
+          token: token || tokenSymbol,
+          tokenSymbol: tokenSymbol || token,
+        }),
+      });
+
+      if (!transferResponse.ok) {
+        const errorData = await transferResponse.json();
+        throw new Error(errorData.error || "Transfer failed");
+      }
+
+      const result = await transferResponse.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Transfer failed");
+      }
+
+      setTxHash(result.transactionHash);
       onTransferInitiate?.();
     } catch (err: any) {
-      setTransferError(err.message || "Transfer failed");
+      console.error("Transfer error:", err);
+      setTransferError(err.message || "Transfer failed. Please try again.");
     } finally {
       setTransferring(false);
     }
@@ -104,7 +169,15 @@ export const TransferCard: React.FC<TransferCardProps> = ({
       {txHash && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-xs text-green-800 mb-1">Transaction Hash:</p>
-          <p className="text-xs font-mono text-green-900 break-all">{txHash}</p>
+          <p className="text-xs font-mono text-green-900 break-all mb-2">{txHash}</p>
+          <a
+            href={`https://explorer.movementlabs.xyz/txn/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-green-700 hover:text-green-900 underline"
+          >
+            View on Movement Explorer →
+          </a>
         </div>
       )}
 
