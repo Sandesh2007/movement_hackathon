@@ -8,7 +8,7 @@
  * - Orchestrator: Gray with no specific icon
  */
 
-import { AgentStyle } from "@/types";
+import { AgentStyle } from "../../types";
 
 /**
  * Get the styling configuration for an agent based on its name
