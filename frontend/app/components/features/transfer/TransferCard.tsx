@@ -23,8 +23,8 @@ import {
   generateSigningMessageForTransaction,
   ChainId,
 } from "@aptos-labs/ts-sdk";
-import { toHex } from "viem"
-import {useSignRawHash} from '@privy-io/react-auth/extended-chains';
+import { toHex } from "viem";
+import { useSignRawHash } from "@privy-io/react-auth/extended-chains";
 
 interface TransferCardProps {
   data: TransferData;
@@ -40,7 +40,7 @@ const MOVEMENT_CHAIN_ID = 250;
 const aptos = new Aptos(
   new AptosConfig({
     network: MOVEMENT_NETWORK,
-    fullnode: MOVEMENT_FULLNODE
+    fullnode: MOVEMENT_FULLNODE,
   })
 );
 
@@ -48,9 +48,9 @@ export const TransferCard: React.FC<TransferCardProps> = ({
   data,
   onTransferInitiate,
 }) => {
-  
-  const {signRawHash} = useSignRawHash();
-  const { amount, token, tokenSymbol, toAddress, fromAddress, network, error } = data;
+  const { signRawHash } = useSignRawHash();
+  const { amount, token, tokenSymbol, toAddress, fromAddress, network, error } =
+    data;
   const { user, ready, authenticated } = usePrivy();
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
@@ -61,15 +61,19 @@ export const TransferCard: React.FC<TransferCardProps> = ({
     if (!ready || !authenticated || !user?.linkedAccounts) {
       return null;
     }
-    return user.linkedAccounts.find(
-      (account): account is WalletWithMetadata =>
-        account.type === "wallet" && account.chainType === "aptos"
-    ) || null;
+    return (
+      user.linkedAccounts.find(
+        (account): account is WalletWithMetadata =>
+          account.type === "wallet" && account.chainType === "aptos"
+      ) || null
+    );
   }, [user, ready, authenticated]);
 
   const handleTransfer = async () => {
     if (!movementWallet) {
-      setTransferError("Movement wallet not found. Please create a Movement wallet first.");
+      setTransferError(
+        "Movement wallet not found. Please create a Movement wallet first."
+      );
       return;
     }
 
@@ -94,16 +98,26 @@ export const TransferCard: React.FC<TransferCardProps> = ({
 
       const senderAddress = aptosWallet.address as string;
       const senderPubKeyWithScheme = aptosWallet.publicKey as string; // "004a4b8e35..."
-      
+
       if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
         throw new Error("Invalid public key format");
       }
-      
+
       const pubKeyNoScheme = senderPubKeyWithScheme.slice(2); // drop leading "00"
 
       // Validate recipient address
-      if (!toAddress || !toAddress.startsWith("0x") || toAddress.length !== 66) {
-        throw new Error("Invalid recipient address. Must be 66 characters and start with 0x.");
+      if (
+        !toAddress ||
+        !toAddress.startsWith("0x") ||
+        toAddress.length !== 66
+      ) {
+        throw new Error(
+          "Invalid recipient address. Must be 66 characters and start with 0x."
+        );
+      }
+
+      if (toAddress === senderAddress) {
+        throw new Error("Bruhhh!! You can't send to yourself.");
       }
 
       // Convert amount to Octas (Aptos uses 8 decimals)
@@ -117,10 +131,10 @@ export const TransferCard: React.FC<TransferCardProps> = ({
       const rawTxn = await aptos.transaction.build.simple({
         sender: senderAddress,
         data: {
-          function: '0x1::coin::transfer',
-          typeArguments: ['0x1::aptos_coin::AptosCoin'],
-          functionArguments: [toAddress, amountInOctas]
-        }
+          function: "0x1::coin::transfer",
+          typeArguments: ["0x1::aptos_coin::AptosCoin"],
+          functionArguments: [toAddress, amountInOctas],
+        },
       });
 
       // Override chain ID to match Movement Network testnet (250)
@@ -140,27 +154,30 @@ export const TransferCard: React.FC<TransferCardProps> = ({
       // Sign the hash using Privy's signRawHash
       const signatureResponse = await signRawHash({
         address: senderAddress,
-        chainType: 'aptos',
-        hash: hash
+        chainType: "aptos",
+        hash: hash,
       });
 
       // Create authenticator from signature
       const publicKey = new Ed25519PublicKey(`0x${pubKeyNoScheme}`);
       const sig = new Ed25519Signature(signatureResponse.signature.slice(2)); // drop 0x from sig
-      const senderAuthenticator = new AccountAuthenticatorEd25519(publicKey, sig);
+      const senderAuthenticator = new AccountAuthenticatorEd25519(
+        publicKey,
+        sig
+      );
 
       // Submit transaction
       const pending = await aptos.transaction.submit.simple({
         transaction: rawTxn,
-        senderAuthenticator
+        senderAuthenticator,
       });
 
       // Wait for transaction to be executed
       const executed = await aptos.waitForTransaction({
-        transactionHash: pending.hash
+        transactionHash: pending.hash,
       });
 
-      console.log('Transaction executed:', executed.hash);
+      console.log("Transaction executed:", executed.hash);
       setTxHash(executed.hash);
       onTransferInitiate?.();
     } catch (err: any) {
@@ -171,61 +188,70 @@ export const TransferCard: React.FC<TransferCardProps> = ({
     }
   };
 
+  const DetailRow = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
+    <div className="flex justify-between items-center">
+      <span className="text-sm font-medium text-gray-700">{label}:</span>
+      <span
+        className={`text-sm font-semibold text-gray-900 ${
+          mono ? "font-mono text-gray-700" : ""
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="bg-white/60 backdrop-blur-md rounded-xl p-6 my-3 border-2 border-purple-200 shadow-elevation-md animate-fade-in-up">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+    <div className="rounded-2xl p-6 my-4 backdrop-blur-xl bg-white/40 border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.08)] animate-fade-in-up">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-200 to-purple-300 flex items-center justify-center shadow-inner">
           <span className="text-2xl">💸</span>
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Transfer Tokens</h3>
+          <h3 className="text-xl font-semibold text-gray-900 tracking-tight">
+            Transfer Tokens
+          </h3>
           <p className="text-sm text-gray-600">Movement Network</p>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">{error}</p>
+        <div className="mb-4 p-4 bg-red-100/60 border border-red-200 rounded-lg text-sm text-red-700 shadow-sm">
+          {error}
         </div>
       )}
 
-      <div className="space-y-3 mb-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-700">Amount:</span>
-          <span className="text-sm font-semibold text-gray-900">
-            {amount} {tokenSymbol || token}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-700">From:</span>
-          <span className="text-sm text-gray-600 font-mono">
-            {fromAddress.slice(0, 6)}...{fromAddress.slice(-4)}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-700">To:</span>
-          <span className="text-sm text-gray-600 font-mono">
-            {toAddress.slice(0, 6)}...{toAddress.slice(-4)}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-700">Network:</span>
-          <span className="text-sm text-gray-600">{network}</span>
-        </div>
+      {/* Details */}
+      <div className="space-y-4 mb-6">
+        <DetailRow
+          label="Amount"
+          value={`${amount} ${tokenSymbol || token}`}
+          mono
+        />
+        <DetailRow
+          label="From"
+          value={`${fromAddress.slice(0, 6)}...${fromAddress.slice(-4)}`}
+          mono
+        />
+        <DetailRow
+          label="To"
+          value={`${toAddress.slice(0, 6)}...${toAddress.slice(-4)}`}
+          mono
+        />
+        <DetailRow label="Network" value={network} mono />
       </div>
 
       {txHash && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-xs text-green-800 mb-1">Transaction Hash:</p>
-          <p className="text-xs font-mono text-green-900 break-all mb-2">{txHash}</p>
+        <div className="mb-5 p-4 bg-green-100/60 border border-green-200 rounded-lg shadow-sm">
+          <p className="text-xs text-green-800 font-medium">Transaction Hash</p>
+          <p className="text-xs text-green-900 font-mono break-all mt-1 mb-2">
+            {txHash}
+          </p>
           <a
             href={`https://explorer.movementlabs.xyz/txn/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-green-700 hover:text-green-900 underline"
+            className="text-xs font-medium text-green-700 hover:text-green-900 underline"
           >
             View on Movement Explorer →
           </a>
@@ -233,27 +259,27 @@ export const TransferCard: React.FC<TransferCardProps> = ({
       )}
 
       {transferError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">{transferError}</p>
+        <div className="mb-5 p-4 bg-red-100/60 border border-red-200 rounded-lg shadow-sm text-sm text-red-700">
+          {transferError}
         </div>
       )}
 
       <button
         onClick={handleTransfer}
         disabled={transferring || !!txHash}
-        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-          transferring || txHash
-            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-            : "bg-purple-600 text-white hover:bg-purple-700 active:scale-95"
-        }`}
+        className={`w-full py-3.5 rounded-xl font-semibold transition-all duration-300 shadow-md
+            ${
+              transferring || txHash
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-purple-600 text-white hover:bg-purple-700 hover:shadow-lg active:scale-95"
+            }`}
       >
         {transferring
           ? "Transferring..."
           : txHash
-          ? "Transfer Complete"
-          : "Transfer"}
+            ? "Transfer Complete"
+            : "Transfer"}
       </button>
     </div>
   );
 };
-

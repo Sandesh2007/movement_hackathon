@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Sidebar } from "../components/sidebar";
 import { RightSidebar } from "../components/right-sidebar";
 import MovementChat from "../components/chat/MovementChat";
+import { ThemeToggle } from "../components/themeToggle";
 
 export default function ChatPage() {
   const { ready, authenticated, user } = usePrivy();
@@ -26,7 +27,9 @@ export default function ChatPage() {
       (account): account is WalletWithMetadata => {
         if (account.type !== "wallet") return false;
         // Type assertion needed because Privy types don't expose chainType directly
-        const walletAccount = account as WalletWithMetadata & { chainType?: string };
+        const walletAccount = account as WalletWithMetadata & {
+          chainType?: string;
+        };
         return walletAccount.chainType === "aptos";
       }
     ) as (WalletWithMetadata & { chainType?: string }) | undefined;
@@ -178,13 +181,18 @@ export default function ChatPage() {
           </button>
         </div>
 
-        <div className="hidden flex-shrink-0 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:block">
-          <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-            Agent Workspace
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Orchestrate agents and execute strategies
-          </p>
+        <div className="hidden shrink-0 border-b flex-row border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:block">
+          <div className="flex flex-row items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                Agent Workspace
+              </h1>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Orchestrate agents and execute strategies
+              </p>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
         <div className="flex flex-1 flex-col overflow-hidden rounded-b-lg border-b border-zinc-200 dark:border-zinc-800">
           <MovementChat walletAddress={walletAddress} />

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 import { Providers } from "./providers";
+import { ThemeProvider } from "./components/themeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,7 +42,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <Providers>{children}</Providers>
+        <ThemeProvider
+          attribute={"class"}
+          enableSystem
+        >
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
