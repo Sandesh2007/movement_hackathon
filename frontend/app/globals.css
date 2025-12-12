@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --text: #ffffff;
 }
 
 @theme inline {
@@ -27,21 +28,28 @@ body {
 
 /* Custom CopilotKit Styles */
 .copilotKitInput {
-  @apply !rounded-xl !border-zinc-200 !bg-zinc-50 !px-4 !py-3 !shadow-sm focus:!border-zinc-400 focus:!ring-0 dark:!border-zinc-800 dark:!bg-zinc-900 dark:focus:!border-zinc-700;
+  @apply rounded-xl! border-zinc-200! bg-zinc-50! px-4! py-3! shadow-sm! focus:border-zinc-400! focus:ring-0! dark:border-zinc-800! dark:bg-zinc-900! dark:focus:border-zinc-700!;
+}
+
+.copilotKitInput > textarea {
+  @apply dark:text-zinc-100! text-zinc-800!;
+}
+.copilotKitInputControls > button {
+  @apply dark:text-zinc-100! text-zinc-800!;
 }
 
 .copilotKitMessage {
-  @apply !rounded-2xl !px-5 !py-3;
+  @apply rounded-2xl! px-5! py-3!;
 }
 
 .copilotKitMessage.user {
-  @apply !bg-zinc-900 !text-white dark:!bg-zinc-100 dark:!text-zinc-900;
+  @apply bg-zinc-900! text-white! dark:bg-zinc-100! dark:text-zinc-900!;
 }
 
 .copilotKitMessage.assistant {
-  @apply !bg-zinc-100 !text-zinc-900 dark:!bg-zinc-800 dark:!text-zinc-100;
+  @apply bg-zinc-100! text-zinc-900! dark:bg-zinc-800! dark:text-zinc-100!;
 }
 
 .copilotKitButton {
-  @apply !rounded-lg !bg-zinc-900 !text-white hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-900 dark:hover:!bg-zinc-200;
+  @apply rounded-lg! bg-zinc-900! text-white! hover:bg-zinc-800! focus:ring-0! dark:bg-zinc-100! dark:text-zinc-900! dark:hover:bg-zinc-200!;
 }

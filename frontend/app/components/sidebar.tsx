@@ -3,6 +3,7 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./themeToggle";
 
 export function Sidebar({
   isOpen,
@@ -55,34 +56,48 @@ export function Sidebar({
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
-          <div>
-            <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-              Movement Nexus
-            </h1>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              AI-Powered DeFi Gateway
-            </p>
-          </div>
-          {/* Close button for mobile */}
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800 md:hidden"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <div>
+          <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
+            <div>
+              <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                Movement Nexus
+              </h1>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                AI-Powered DeFi Gateway
+              </p>
+            </div>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={onClose}
+              className="md:hidden rounded-md p-1 text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="p-2 space-y-2 md:hidden">
+            <div className="flex items-center justify-between rounded-lg border border-zinc-200 p-2 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+              <div>
+                <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  Theme
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -116,7 +131,7 @@ export function Sidebar({
               {agents.map((agent) => (
                 <div
                   key={agent.name}
-                  className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
+                  className="rounded-lg cursor-pointer hover:scale-105 duration-150 border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
                 >
                   <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
                     {agent.name}
