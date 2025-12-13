@@ -6,10 +6,15 @@
  */
 
 export interface TokenInfo {
-  symbol: string;
-  name: string;
-  address: string;
+  id: string;
   decimals: number;
+  name: string;
+  symbol: string;
+  type: "coin" | "fungibleAsset";
+  isVerified: boolean;
+  iconUri?: string;
+  faAddress: string;
+  coinType?: string;
 }
 
 /**
