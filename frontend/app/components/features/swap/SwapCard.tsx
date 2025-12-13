@@ -7,6 +7,12 @@ import {
   getTokenInfo,
   type TokenInfo,
 } from "../../../utils/tokens";
+import { getTokenBySymbol, getAllTokens } from "../../../utils/token-constants";
+import {
+  getQuote,
+  getMosaicAssetFormat,
+  type MosaicQuoteResponse,
+} from "../../../utils/mosaic-api";
 import {
   Aptos,
   AptosConfig,
@@ -41,18 +47,7 @@ const MOVEMENT_NETWORK = Network.MAINNET;
 const MOVEMENT_FULLNODE = "https://full.mainnet.movementinfra.xyz/v1";
 const MOVEMENT_CHAIN_ID = 126; // Mainnet chain ID
 
-// Swap contract address
-const SWAP_CONTRACT_ADDRESS =
-  "0x46566b4a16a1261ab400ab5b9067de84ba152b5eb4016b217187f2a2ca980c5a";
-
-// Example route for MOVE -> USDC (from the transaction example)
-// In production, you'd fetch this from a router/quoter service
-const DEFAULT_ROUTES: Record<string, string[]> = {
-  "MOVE-USDC": [
-    "0x57457d31d3a8badc09fe46ac3f429acbeab163b080c6c2ff6edd251e55eaeba5",
-    "0x70fb1f546f1593ba50408a05266723ce5fd19a6df6ba7e5e5bd805f969cfb07e",
-  ],
-};
+// Mosaic API is used for quotes and routing - no hardcoded routes needed
 
 const aptos = new Aptos(
   new AptosConfig({
@@ -76,10 +71,30 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
   const [toBalance, setToBalance] = useState<string | null>(null);
   const [loadingFromBalance, setLoadingFromBalance] = useState(false);
   const [loadingToBalance, setLoadingToBalance] = useState(false);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+  const [quote, setQuote] = useState<MosaicQuoteResponse | null>(null);
 
+  // Get all available tokens from token-constants
+  // Store both original symbol and uppercase for display
   const availableTokens = useMemo(() => {
-    return Object.keys(MOVEMENT_TOKENS);
+    const allTokens = getAllTokens();
+    // Extract unique symbols - keep original case for API calls, but display uppercase
+    const symbolMap = new Map<string, string>();
+    allTokens.forEach((token) => {
+      const upperSymbol = token.symbol.toUpperCase();
+      // Store original symbol for the uppercase key
+      if (!symbolMap.has(upperSymbol)) {
+        symbolMap.set(upperSymbol, token.symbol);
+      }
+    });
+    return Array.from(symbolMap.keys()).sort();
   }, []);
+
+  // Helper to get original symbol case from token-constants
+  const getOriginalSymbol = (upperSymbol: string): string => {
+    const token = getTokenBySymbol(upperSymbol);
+    return token?.symbol || upperSymbol;
+  };
 
   const fromTokenInfo = useMemo(() => {
     return getTokenInfo(fromToken);
@@ -87,6 +102,15 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
 
   const toTokenInfo = useMemo(() => {
     return getTokenInfo(toToken);
+  }, [toToken]);
+
+  // Get full token info from token-constants for Mosaic API
+  const fromTokenFullInfo = useMemo(() => {
+    return getTokenBySymbol(fromToken);
+  }, [fromToken]);
+
+  const toTokenFullInfo = useMemo(() => {
+    return getTokenBySymbol(toToken);
   }, [toToken]);
 
   // Get Movement wallet from user's linked accounts
@@ -112,8 +136,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
     const fetchFromBalance = async () => {
       setLoadingFromBalance(true);
       try {
+        // Use original symbol case for API query
+        const originalSymbol = getOriginalSymbol(fromToken);
         const response = await fetch(
-          `/api/balance?address=${encodeURIComponent(walletAddress)}&token=${encodeURIComponent(fromToken)}`
+          `/api/balance?address=${encodeURIComponent(walletAddress)}&token=${encodeURIComponent(originalSymbol)}`
         );
 
         if (!response.ok) {
@@ -122,14 +148,23 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
 
         const data = await response.json();
         if (data.success && data.balances && data.balances.length > 0) {
-          // Find the matching token balance
-          const tokenBalance = data.balances.find(
-            (b: TokenBalance) =>
-              b.metadata.symbol.toUpperCase() === fromToken.toUpperCase()
-          );
+          // Find the matching token balance - case-insensitive comparison
+          const normalizedFromToken = fromToken.toUpperCase();
+          const tokenBalance = data.balances.find((b: TokenBalance) => {
+            const normalizedSymbol = b.metadata.symbol.toUpperCase();
+            return normalizedSymbol === normalizedFromToken;
+          });
+
           if (tokenBalance) {
             setFromBalance(tokenBalance.formattedAmount);
           } else {
+            // Log for debugging
+            console.log(
+              "Balance not found for token:",
+              fromToken,
+              "Available:",
+              data.balances.map((b: TokenBalance) => b.metadata.symbol)
+            );
             setFromBalance("0.000000");
           }
         } else {
@@ -156,8 +191,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
     const fetchToBalance = async () => {
       setLoadingToBalance(true);
       try {
+        // Use original symbol case for API query
+        const originalSymbol = getOriginalSymbol(toToken);
         const response = await fetch(
-          `/api/balance?address=${encodeURIComponent(walletAddress)}&token=${encodeURIComponent(toToken)}`
+          `/api/balance?address=${encodeURIComponent(walletAddress)}&token=${encodeURIComponent(originalSymbol)}`
         );
 
         if (!response.ok) {
@@ -166,14 +203,23 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
 
         const data = await response.json();
         if (data.success && data.balances && data.balances.length > 0) {
-          // Find the matching token balance
-          const tokenBalance = data.balances.find(
-            (b: TokenBalance) =>
-              b.metadata.symbol.toUpperCase() === toToken.toUpperCase()
-          );
+          // Find the matching token balance - case-insensitive comparison
+          const normalizedToToken = toToken.toUpperCase();
+          const tokenBalance = data.balances.find((b: TokenBalance) => {
+            const normalizedSymbol = b.metadata.symbol.toUpperCase();
+            return normalizedSymbol === normalizedToToken;
+          });
+
           if (tokenBalance) {
             setToBalance(tokenBalance.formattedAmount);
           } else {
+            // Log for debugging
+            console.log(
+              "Balance not found for token:",
+              toToken,
+              "Available:",
+              data.balances.map((b: TokenBalance) => b.metadata.symbol)
+            );
             setToBalance("0.000000");
           }
         } else {
@@ -199,17 +245,74 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
     setToAmount(tempAmount);
   };
 
+  // Fetch quote from Mosaic API when amount or tokens change
+  useEffect(() => {
+    const fetchQuote = async () => {
+      if (
+        !fromAmount ||
+        isNaN(parseFloat(fromAmount)) ||
+        parseFloat(fromAmount) <= 0 ||
+        !fromTokenFullInfo ||
+        !toTokenFullInfo ||
+        fromToken === toToken ||
+        !walletAddress
+      ) {
+        setToAmount("");
+        setQuote(null);
+        return;
+      }
+
+      setLoadingQuote(true);
+      try {
+        const amountInSmallestUnit = Math.floor(
+          parseFloat(fromAmount) * Math.pow(10, fromTokenFullInfo.decimals)
+        );
+
+        const srcAsset = getMosaicAssetFormat(fromTokenFullInfo);
+        const dstAsset = getMosaicAssetFormat(toTokenFullInfo);
+        const slippageBps = Math.floor(slippage * 100); // Convert percentage to basis points
+
+        const quoteResponse = await getQuote({
+          srcAsset,
+          dstAsset,
+          amount: amountInSmallestUnit.toString(),
+          sender: walletAddress,
+          slippage: slippageBps,
+        });
+
+        setQuote(quoteResponse);
+
+        // Calculate output amount
+        const dstAmount = quoteResponse.data.dstAmount;
+        const dstAmountFormatted =
+          dstAmount / Math.pow(10, toTokenFullInfo.decimals);
+        setToAmount(dstAmountFormatted.toFixed(6));
+      } catch (error: any) {
+        console.error("Error fetching quote:", error);
+        setToAmount("");
+        setQuote(null);
+        // Don't show error to user for quote failures - just clear the output
+      } finally {
+        setLoadingQuote(false);
+      }
+    };
+
+    // Debounce quote fetching
+    const timeoutId = setTimeout(fetchQuote, 500);
+    return () => clearTimeout(timeoutId);
+  }, [
+    fromAmount,
+    fromToken,
+    toToken,
+    fromTokenFullInfo,
+    toTokenFullInfo,
+    walletAddress,
+    slippage,
+  ]);
+
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value);
-    // TODO: Calculate estimated output based on exchange rate
-    // For now, just show placeholder
-    if (value && !isNaN(parseFloat(value))) {
-      // Placeholder calculation - replace with actual quote from DEX
-      const estimated = parseFloat(value) * 0.99; // Assuming 1:1 with 1% slippage
-      setToAmount(estimated.toFixed(6));
-    } else {
-      setToAmount("");
-    }
+    // Quote will be fetched automatically via useEffect
   };
 
   const handleSwap = async () => {
@@ -235,9 +338,13 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
       return;
     }
 
-    // Only support MOVE -> USDC for now (can be extended)
-    if (fromToken !== "MOVE" || toToken !== "USDC") {
-      setSwapError("Currently only MOVE -> USDC swaps are supported.");
+    if (!fromTokenFullInfo || !toTokenFullInfo) {
+      setSwapError("Invalid token selection.");
+      return;
+    }
+
+    if (!quote) {
+      setSwapError("Please wait for quote to load.");
       return;
     }
 
@@ -264,54 +371,27 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
 
       const pubKeyNoScheme = senderPubKeyWithScheme.slice(2); // drop leading "00"
 
-      // Get token info
-      const fromTokenInfo = getTokenInfo(fromToken);
-      const toTokenInfo = getTokenInfo(toToken);
-
-      if (!fromTokenInfo || !toTokenInfo) {
-        throw new Error("Invalid token selection");
+      // Validate token info (use full info from token-constants)
+      if (!fromTokenFullInfo || !toTokenFullInfo) {
+        throw new Error(
+          `Invalid token selection. From: ${fromToken}, To: ${toToken}`
+        );
       }
 
-      // Convert amount to smallest unit (octas for MOVE = 8 decimals)
-      const parsedAmount = parseFloat(fromAmount);
-      if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        throw new Error("Invalid amount. Please enter a positive number.");
-      }
-      const amountIn = Math.floor(
-        parsedAmount * Math.pow(10, fromTokenInfo.decimals)
-      );
-
-      // Calculate minimum amount out with slippage
-      // For now, use a simple calculation - in production, get quote from DEX
-      const estimatedOut = parseFloat(toAmount || "0");
-      // const minAmountOut = Math.floor(
-      //   estimatedOut * (1 - slippage / 100) * Math.pow(10, toTokenInfo.decimals)
-      // );
-      const minAmountOut = 0;
-
-      // Get route for the swap pair
-      const routeKey = `${fromToken}-${toToken}`;
-      const route = DEFAULT_ROUTES[routeKey];
-
-      if (!route || route.length === 0) {
-        throw new Error(`Route not found for ${fromToken} -> ${toToken}`);
+      // Use Mosaic quote transaction data
+      if (!quote || !quote.data || !quote.data.tx) {
+        throw new Error("Invalid quote. Please try again.");
       }
 
-      // Build the swap transaction
-      // Function: scripts::swap_exact_coin_for_fa_multi_hops
-      // Type args: [0x1::aptos_coin::AptosCoin] (input token type)
-      // Args: [route (array of pool addresses), amount_in, amount_out_min, recipient]
+      const mosaicTx = quote.data.tx;
+
+      // Build the swap transaction using Mosaic's transaction data
       const rawTxn = await aptos.transaction.build.simple({
         sender: senderAddress,
         data: {
-          function: `${SWAP_CONTRACT_ADDRESS}::scripts::swap_exact_coin_for_fa_multi_hops`,
-          typeArguments: ["0x1::aptos_coin::AptosCoin"],
-          functionArguments: [
-            route, // Array of pool addresses (route)
-            amountIn.toString(), // Amount in
-            minAmountOut.toString(), // Minimum amount out
-            senderAddress, // Recipient (same as sender)
-          ],
+          function: mosaicTx.function as `${string}::${string}::${string}`,
+          typeArguments: mosaicTx.typeArguments,
+          functionArguments: mosaicTx.functionArguments,
         },
       });
 
@@ -356,9 +436,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
       setTxHash(executed.hash);
 
       // Refresh balances after successful swap
-      if (fromTokenInfo) {
+      if (fromTokenFullInfo) {
+        const originalFromSymbol = getOriginalSymbol(fromToken);
         const fromResponse = await fetch(
-          `/api/balance?address=${encodeURIComponent(walletAddress || senderAddress)}&token=${encodeURIComponent(fromToken)}`
+          `/api/balance?address=${encodeURIComponent(walletAddress || senderAddress)}&token=${encodeURIComponent(originalFromSymbol)}`
         );
         if (fromResponse.ok) {
           const fromData = await fromResponse.json();
@@ -367,10 +448,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
             fromData.balances &&
             fromData.balances.length > 0
           ) {
-            const tokenBalance = fromData.balances.find(
-              (b: TokenBalance) =>
-                b.metadata.symbol.toUpperCase() === fromToken.toUpperCase()
-            );
+            const normalizedFromToken = fromToken.toUpperCase();
+            const tokenBalance = fromData.balances.find((b: TokenBalance) => {
+              return b.metadata.symbol.toUpperCase() === normalizedFromToken;
+            });
             if (tokenBalance) {
               setFromBalance(tokenBalance.formattedAmount);
             }
@@ -378,17 +459,18 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
         }
       }
 
-      if (toTokenInfo) {
+      if (toTokenFullInfo) {
+        const originalToSymbol = getOriginalSymbol(toToken);
         const toResponse = await fetch(
-          `/api/balance?address=${encodeURIComponent(walletAddress || senderAddress)}&token=${encodeURIComponent(toToken)}`
+          `/api/balance?address=${encodeURIComponent(walletAddress || senderAddress)}&token=${encodeURIComponent(originalToSymbol)}`
         );
         if (toResponse.ok) {
           const toData = await toResponse.json();
           if (toData.success && toData.balances && toData.balances.length > 0) {
-            const tokenBalance = toData.balances.find(
-              (b: TokenBalance) =>
-                b.metadata.symbol.toUpperCase() === toToken.toUpperCase()
-            );
+            const normalizedToToken = toToken.toUpperCase();
+            const tokenBalance = toData.balances.find((b: TokenBalance) => {
+              return b.metadata.symbol.toUpperCase() === normalizedToToken;
+            });
             if (tokenBalance) {
               setToBalance(tokenBalance.formattedAmount);
             }
@@ -414,7 +496,9 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
       fromAmount &&
       parseFloat(fromAmount) > 0 &&
       fromToken !== toToken &&
-      !swapping
+      !swapping &&
+      !!quote &&
+      !loadingQuote
     );
   }, [
     ready,
@@ -424,6 +508,8 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
     fromToken,
     toToken,
     swapping,
+    quote,
+    loadingQuote,
   ]);
 
   return (
@@ -545,14 +631,19 @@ export const SwapCard: React.FC<SwapCardProps> = ({ walletAddress }) => {
             To
           </label>
           <div className="flex gap-2">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <input
                 type="text"
-                value={toAmount}
+                value={loadingQuote ? "..." : toAmount}
                 readOnly
-                placeholder="0.0"
+                placeholder={loadingQuote ? "Loading quote..." : "0.0"}
                 className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-950 dark:text-zinc-50 placeholder-zinc-400 focus:outline-none"
               />
+              {loadingQuote && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </div>
             <select
               value={toToken}
