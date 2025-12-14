@@ -22,13 +22,24 @@ import {
   SendMessageSuccessResponse,
 } from "@a2a-js/sdk";
 import { Observable, Subscriber, tap } from "rxjs";
-import { createSystemPrompt, sendMessageToA2AAgentTool } from "./utils";
+import { createSystemPrompt, sendMessageToA2AAgentTool, retryA2AAgentWithPaymentTool } from "./utils";
 import { randomUUID } from "@ag-ui/client";
 
 export interface A2AAgentConfig extends AgentConfig {
   agentUrls: string[];
   instructions?: string;
   orchestrationAgent: AbstractAgent;
+}
+
+export interface PaymentRequiredError {
+  errorCode: number;
+  errorType: "PAYMENT_REQUIRED";
+  amount: string;
+  token: string;
+  recipientAddress?: string;
+  description?: string;
+  originalTask: string;
+  agentName: string;
 }
 
 export class A2AMiddlewareAgent extends AbstractAgent {
@@ -111,20 +122,23 @@ export class A2AMiddlewareAgent extends AbstractAgent {
       )
       .subscribe({
         next: (event: BaseEvent) => {
-          // Handle tool call start events for send_message_to_a2a_agent
+          // Handle tool call start events for send_message_to_a2a_agent and retry_a2a_agent_with_payment
           if (
             event.type === EventType.TOOL_CALL_START &&
             "toolCallName" in event &&
-            "toolCallId" in event &&
-            (event as ToolCallStartEvent).toolCallName.startsWith(
-              "send_message_to_a2a_agent"
-            )
+            "toolCallId" in event
           ) {
-            // Track this as a pending A2A call
-            pendingA2ACalls.add(event.toolCallId as string);
-            // Proxy the start event normally
-            observer.next(event);
-            return;
+            const toolCallName = (event as ToolCallStartEvent).toolCallName;
+            if (
+              toolCallName.startsWith("send_message_to_a2a_agent") ||
+              toolCallName.startsWith("retry_a2a_agent_with_payment")
+            ) {
+              // Track this as a pending A2A call
+              pendingA2ACalls.add(event.toolCallId as string);
+              // Proxy the start event normally
+              observer.next(event);
+              return;
+            }
           }
 
           // Handle tool call result events for send_message_to_a2a_agent
@@ -160,16 +174,38 @@ export class A2AMiddlewareAgent extends AbstractAgent {
                   );
                 }
                 const parsed = JSON.parse(toolArgs);
-                const agentName = parsed.agentName;
-                const task = parsed.task;
+                const toolCallName = toolCallsFromMessages[0]?.function.name;
+                
+                // Check if this is a retry call with payment
+                let agentCallPromise: Promise<string>;
+                if (toolCallName === "retry_a2a_agent_with_payment") {
+                  const agentName = parsed.agentName;
+                  const task = parsed.task;
+                  const transactionHash = parsed.transactionHash;
 
-                if (this.debug) {
-                  console.debug("sending message to a2a agent", {
-                    agentName,
-                    message: task,
-                  });
+                  if (this.debug) {
+                    console.debug("retrying a2a agent with payment", {
+                      agentName,
+                      message: task,
+                      transactionHash,
+                    });
+                  }
+                  agentCallPromise = this.sendMessageToA2AAgent(agentName, task, transactionHash);
+                } else {
+                  // Regular A2A call
+                  const agentName = parsed.agentName;
+                  const task = parsed.task;
+
+                  if (this.debug) {
+                    console.debug("sending message to a2a agent", {
+                      agentName,
+                      message: task,
+                    });
+                  }
+                  agentCallPromise = this.sendMessageToA2AAgent(agentName, task);
                 }
-                return this.sendMessageToA2AAgent(agentName, task)
+                
+                return agentCallPromise
                   .then((a2aResponse) => {
                     const newMessage: Message = {
                       id: randomUUID(),
@@ -196,6 +232,48 @@ export class A2AMiddlewareAgent extends AbstractAgent {
                     observer.next(newEvent);
 
                     pendingA2ACalls.delete(toolCallId);
+                  })
+                  .catch((error: any) => {
+                    // Handle payment required errors
+                    if (error.paymentRequired && error.paymentDetails) {
+                      const paymentDetails = error.paymentDetails as PaymentRequiredError;
+                      
+                      // Return error response that includes payment details
+                      // The orchestrator can then call the payment action
+                      const errorMessage = JSON.stringify({
+                        error: "PAYMENT_REQUIRED",
+                        paymentDetails: paymentDetails,
+                        message: `Payment required: ${paymentDetails.description || "Please complete payment to continue"}`,
+                      });
+
+                      const newMessage: Message = {
+                        id: randomUUID(),
+                        role: "tool",
+                        toolCallId: toolCallId,
+                        content: errorMessage,
+                      };
+                      
+                      if (this.debug) {
+                        console.debug("Payment required error", paymentDetails);
+                      }
+                      
+                      this.addMessage(newMessage);
+                      this.orchestrationAgent.addMessage(newMessage);
+                      newToolMessages.push(newMessage);
+
+                      const newEvent: ToolCallResultEvent = {
+                        type: EventType.TOOL_CALL_RESULT,
+                        toolCallId: toolCallId,
+                        messageId: newMessage.id,
+                        content: errorMessage,
+                      };
+
+                      observer.next(newEvent);
+                      pendingA2ACalls.delete(toolCallId);
+                    } else {
+                      // For other errors, throw them
+                      throw error;
+                    }
                   })
                   .finally(() => {
                     pendingA2ACalls.delete(toolCallId as string);
@@ -276,7 +354,11 @@ export class A2AMiddlewareAgent extends AbstractAgent {
           id: randomUUID(),
         });
 
-        input.tools = [...(input.tools || []), sendMessageToA2AAgentTool];
+        input.tools = [
+          ...(input.tools || []),
+          sendMessageToA2AAgentTool,
+          retryA2AAgentWithPaymentTool,
+        ];
 
         // Start the orchestration agent run
         this.triggerNewRun(
@@ -292,7 +374,8 @@ export class A2AMiddlewareAgent extends AbstractAgent {
 
   private async sendMessageToA2AAgent(
     agentName: string,
-    args: string
+    args: string,
+    transactionHash?: string
   ): Promise<string> {
     const agentCards = await this.agentCards;
 
@@ -308,18 +391,72 @@ export class A2AMiddlewareAgent extends AbstractAgent {
 
     const { client } = agent;
 
+    // If we have a transaction hash from a previous payment, include it in the request
+    const messageText = transactionHash
+      ? `${args}\n\nPayment transaction hash: ${transactionHash}`
+      : args;
+
     const sendResponse: SendMessageResponse = await client.sendMessage({
       message: {
         kind: "message",
         messageId: Date.now().toString(),
         role: "agent",
-        parts: [{ text: args, kind: "text" }],
+        parts: [{ text: messageText, kind: "text" }],
       },
     });
 
     if ("error" in sendResponse) {
+      const error = sendResponse.error;
+      const errorMessage = error.message || "";
+      const errorCode = (error as any).code || (error as any).statusCode;
+
+      // Check for 402 Payment Required error
+      if (errorCode === 402 || errorMessage.includes("402") || errorMessage.includes("Payment Required")) {
+        // Try to parse payment details from error message
+        let paymentDetails: PaymentRequiredError | null = null;
+        
+        try {
+          // Try to parse JSON from error message
+          const jsonMatch = errorMessage.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            paymentDetails = {
+              errorCode: 402,
+              errorType: "PAYMENT_REQUIRED",
+              amount: parsed.amount || "0",
+              token: parsed.token || "MOVE",
+              recipientAddress: parsed.recipientAddress,
+              description: parsed.description || `Payment required to continue with ${agentName} agent`,
+              originalTask: args,
+              agentName: agentName,
+            };
+          }
+        } catch (e) {
+          // If parsing fails, create default payment error
+        }
+
+        if (!paymentDetails) {
+          // Default payment details if we can't parse
+          paymentDetails = {
+            errorCode: 402,
+            errorType: "PAYMENT_REQUIRED",
+            amount: "0",
+            token: "MOVE",
+            description: `Payment required to continue with ${agentName} agent`,
+            originalTask: args,
+            agentName: agentName,
+          };
+        }
+
+        // Throw a special error that includes payment details
+        const paymentError = new Error(JSON.stringify(paymentDetails));
+        (paymentError as any).paymentRequired = true;
+        (paymentError as any).paymentDetails = paymentDetails;
+        throw paymentError;
+      }
+
       throw new Error(
-        `Error sending message to agent "${agentName}": ${sendResponse.error.message}`
+        `Error sending message to agent "${agentName}": ${errorMessage}`
       );
     }
 

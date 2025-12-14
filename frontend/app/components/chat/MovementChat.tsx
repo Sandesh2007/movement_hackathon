@@ -19,7 +19,8 @@ import { MessageToA2A } from "./a2a/MessageToA2A";
 import { MessageFromA2A } from "./a2a/MessageFromA2A";
 import { TransferCard } from "../features/transfer/TransferCard";
 import { SwapCard } from "../features/swap/SwapCard";
-import { TransferData } from "../types";
+import { PaymentCard } from "../features/payment/PaymentCard";
+import { TransferData, PaymentData } from "../types";
 import { getAllTokens } from "../../utils/token-constants";
 
 interface MovementChatProps {
@@ -127,6 +128,76 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
           data={transferData}
           onTransferInitiate={() => {
             console.log("Transfer initiated:", transferData);
+          }}
+        />
+      );
+    },
+  });
+
+  // Register payment action - shows PaymentCard when 402 error occurs
+  useCopilotAction({
+    name: "initiate_payment",
+    description:
+      "Initiate a payment when a 402 Payment Required error is encountered. Use this when an agent returns a PAYMENT_REQUIRED error.",
+    parameters: [
+      {
+        name: "amount",
+        type: "string",
+        description: "The amount to pay (e.g., '1', '0.5', '100')",
+        required: true,
+      },
+      {
+        name: "token",
+        type: "string",
+        description: "The token symbol to pay with (e.g., 'MOVE', 'USDC', 'USDT')",
+        required: true,
+      },
+      {
+        name: "recipientAddress",
+        type: "string",
+        description:
+          "The recipient wallet address (66 characters for Movement Network, must start with 0x)",
+        required: false,
+      },
+      {
+        name: "description",
+        type: "string",
+        description: "Description of what the payment is for",
+        required: false,
+      },
+    ],
+    render: (props) => {
+      const { amount, token, recipientAddress, description } = props.args as {
+        amount: string;
+        token: string;
+        recipientAddress?: string;
+        description?: string;
+      };
+
+      if (!walletAddress) {
+        return (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg my-3">
+            <p className="text-sm text-yellow-800">
+              Please connect your wallet to make a payment.
+            </p>
+          </div>
+        );
+      }
+
+      const paymentData: PaymentData = {
+        amount: amount || "0",
+        token: token || "MOVE",
+        tokenSymbol: token || "MOVE",
+        recipientAddress: recipientAddress,
+        description: description || "Payment required to continue",
+      };
+
+      return (
+        <PaymentCard
+          data={paymentData}
+          onPaymentComplete={(txHash) => {
+            console.log("Payment completed with transaction hash:", txHash);
+            // The orchestrator should automatically retry with the transaction hash
           }}
         />
       );

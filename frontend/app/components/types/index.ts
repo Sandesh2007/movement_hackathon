@@ -75,3 +75,17 @@ export interface TransferData {
   network: string;
   error?: string;
 }
+
+/**
+ * Payment data structure for 402 error handling
+ */
+export interface PaymentData {
+  amount: string;
+  token: string;
+  tokenSymbol: string;
+  recipientAddress?: string;
+  description?: string;
+  transactionHash?: string;
+  onPaymentComplete?: (txHash: string) => void;
+  error?: string;
+}

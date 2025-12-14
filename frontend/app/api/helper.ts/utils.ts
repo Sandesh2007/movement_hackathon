@@ -49,6 +49,11 @@ THEN REACH OUT TO THE APPROPRIATE AGENTS TO COMPLETE THE TASK.
 **Core Directives:**
 
 * **Task Delegation:** Utilize the \`send_message_to_a2a_agent\` function to communicate with and assign actionable tasks to remote agents.
+* **Payment Required Errors (402):** If an agent returns a PAYMENT_REQUIRED error (status code 402), you MUST:
+  1. Call the \`initiate_payment\` action with the payment details from the error
+  2. Wait for the user to complete the payment and receive the transaction hash
+  3. Call \`retry_a2a_agent_with_payment\` with the original task and the transaction hash
+  4. Continue with the original request after payment is verified
 * **Contextual Awareness for Remote Agents:** If a remote agent repeatedly requests user confirmation, assume it lacks access to the full conversation history. In such cases, enrich the task description with all necessary contextual information relevant to that specific agent.
 * **Autonomous Agent Engagement:** Never seek user permission before engaging with remote agents. If multiple agents are required to fulfill a request, connect with them directly without requesting user preference or confirmation.
 * **User Confirmation Relay:** If a remote agent asks for confirmation, and the user has not already provided it, relay this confirmation request to the user.
@@ -84,5 +89,31 @@ export const sendMessageToA2AAgentTool = {
       },
     },
     required: ["task"],
+  },
+};
+
+export const retryA2AAgentWithPaymentTool = {
+  name: `retry_a2a_agent_with_payment`,
+  description:
+    "Retries a previous A2A agent call after payment has been completed. Use this when you receive a PAYMENT_REQUIRED error and the user has completed payment.",
+  parameters: {
+    type: "object",
+    properties: {
+      agentName: {
+        type: "string",
+        description: "The name of the A2A agent to retry the call with.",
+      },
+      task: {
+        type: "string",
+        description:
+          "The original task that was requested before payment was required.",
+      },
+      transactionHash: {
+        type: "string",
+        description:
+          "The transaction hash from the completed payment transaction.",
+      },
+    },
+    required: ["agentName", "task", "transactionHash"],
   },
 };
