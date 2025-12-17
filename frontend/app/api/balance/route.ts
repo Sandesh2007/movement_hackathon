@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Movement Network Indexer GraphQL endpoint
 const MOVEMENT_INDEXER_URL =
-  "https://rpc.sentio.xyz/movement-indexer/v1/graphql";
+  "https://indexer.mainnet.movementnetwork.xyz/v1/graphql";
 
 // Native token asset type (MOVE coin)
 const NATIVE_TOKEN_ASSET_TYPE =

@@ -8,7 +8,11 @@
     "build": "next build --webpack",
     "start": "next start",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "moveposition:lend": "ts-node scripts/lend_v2.ts",
+    "moveposition:borrow": "ts-node scripts/borrow_v2.ts",
+    "moveposition:repay": "ts-node scripts/repay_v2.ts",
+    "moveposition:redeem": "ts-node scripts/redeem_v2.ts"
   },
   "dependencies": {
     "@ag-ui/a2a-middleware": "^0.0.2",
@@ -30,7 +34,11 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "server-only": "^0.0.1",
-    "viem": "^2.41.2"
+    "viem": "^2.41.2",
+    "@aptos-labs/wallet-adapter-core": "^4.11.0",
+    "@thalalabs/router-sdk": "^3.2.1",
+    "@thalalabs/surf": "^1.7.1",
+    "aptos": "^1.21.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -41,6 +49,7 @@
     "eslint-config-next": "16.0.6",
     "prettier": "^3.7.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "overrides": {
