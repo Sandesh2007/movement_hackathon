@@ -23,29 +23,41 @@ export interface TokenInfo {
  */
 export const MOVEMENT_TOKENS: Record<string, TokenInfo> = {
   MOVE: {
+    id: "move",
     symbol: "MOVE",
     name: "Movement",
-    address: "0x1::aptos_coin::AptosCoin", // Native token - uses special address
+    faAddress: "0x1::aptos_coin::AptosCoin", // Native token - uses special address
     decimals: 8, // Movement uses 8 decimals like Aptos
+    type: "coin",
+    isVerified: true,
   },
   // Add more tokens as needed - these are placeholder addresses
   USDC: {
+    id: "usdc",
     symbol: "USDC",
     name: "USD Coin",
-    address: "0x1::coin::USDC", // Update with actual USDC address on Movement
+    faAddress: "0x1::coin::USDC", // Update with actual USDC address on Movement
     decimals: 6,
+    type: "coin",
+    isVerified: true,
   },
   USDT: {
+    id: "usdt",
     symbol: "USDT",
     name: "Tether USD",
-    address: "0x1::coin::USDT", // Update with actual USDT address on Movement
+    faAddress: "0x1::coin::USDT", // Update with actual USDT address on Movement
     decimals: 6,
+    type: "coin",
+    isVerified: true,
   },
   DAI: {
+    id: "dai",
     symbol: "DAI",
     name: "Dai Stablecoin",
-    address: "0x1::coin::DAI", // Update with actual DAI address on Movement
+    faAddress: "0x1::coin::DAI", // Update with actual DAI address on Movement
     decimals: 18,
+    type: "coin",
+    isVerified: true,
   },
 };
 

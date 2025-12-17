@@ -104,7 +104,7 @@ export class TransactionError extends Error {
 export function decodeFP64(u128: string): string {
   const fullNumber = BigInt(u128);
   const fractionalMask = BigInt("0xFFFFFFFFFFFFFFFF"); // Mask for the fractional part
-  const integerPart = fullNumber >> 64n; // Shift right to get the integer part
+  const integerPart = fullNumber >> BigInt(64); // Shift right to get the integer part
   const fractionalPart = fullNumber & fractionalMask; // Apply mask to get the fractional part
 
   // Convert fractional part to a decimal string

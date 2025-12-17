@@ -2,7 +2,7 @@
 
 import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { Sidebar } from "../components/sidebar";
 import { RightSidebar } from "../components/right-sidebar";
 import { ThemeToggle } from "../components/themeToggle";
@@ -112,7 +112,7 @@ interface PortfolioResponse {
   };
 }
 
-export default function PositionsPage() {
+function PositionsPageContent() {
   const { ready, authenticated, user } = usePrivy();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -873,5 +873,13 @@ export default function PositionsPage() {
         healthFactor={healthFactor}
       />
     </div>
+  );
+}
+
+export default function PositionsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <PositionsPageContent />
+    </Suspense>
   );
 }
