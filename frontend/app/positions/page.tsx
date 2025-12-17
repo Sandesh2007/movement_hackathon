@@ -131,7 +131,6 @@ function PositionsPageContent() {
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const [isSupplyModalOpen, setIsSupplyModalOpen] = useState<boolean>(false);
   const [isBorrowModalOpen, setIsBorrowModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"supply" | "borrow">("supply");
   const [selectedAsset, setSelectedAsset] = useState<MarketPosition | null>(
     null
   );
@@ -531,56 +530,6 @@ function PositionsPageContent() {
                 </div>
               </div>
 
-              {/* Tabs */}
-              <div className="flex p-1 mb-6 bg-zinc-100 dark:bg-zinc-800/50 rounded-xl backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-700/50">
-                <button
-                  onClick={() => setActiveTab("supply")}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-                    activeTab === "supply"
-                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-700/50"
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Supply
-                </button>
-                <button
-                  onClick={() => setActiveTab("borrow")}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-                    activeTab === "borrow"
-                      ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-700/50"
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                    />
-                  </svg>
-                  Borrow
-                </button>
-              </div>
-
               {/* Search Bar */}
               <div className="mb-4">
                 <div className="relative">
@@ -734,46 +683,58 @@ function PositionsPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-2">
+                              {/* Supply - Coin going into wallet */}
                               <button
-                                className="w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors"
+                                className="group relative w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-200 dark:border-emerald-700/50 flex items-center justify-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 hover:border-emerald-400"
                                 onClick={() => {
                                   setSelectedAsset(asset);
                                   setIsSupplyModalOpen(true);
                                 }}
                               >
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <svg
-                                  className="w-4 h-4"
+                                  className="w-[18px] h-[18px] relative z-10 text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors"
+                                  viewBox="0 0 24 24"
                                   fill="none"
                                   stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 4v16m8-8H4"
+                                  <circle
+                                    cx="12"
+                                    cy="12"
+                                    r="8"
+                                    className="group-hover:animate-pulse"
                                   />
+                                  <path d="M12 8v8M8 12h8" />
                                 </svg>
                               </button>
+                              {/* Borrow - Coin coming out */}
                               <button
-                                className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
+                                className="group relative w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-br from-violet-50 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 border border-violet-200 dark:border-violet-700/50 flex items-center justify-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 hover:border-violet-400"
                                 onClick={() => {
                                   setSelectedAsset(asset);
                                   setIsBorrowModalOpen(true);
                                 }}
                               >
+                                <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <svg
-                                  className="w-4 h-4"
+                                  className="w-[18px] h-[18px] relative z-10 text-violet-600 dark:text-violet-400 group-hover:text-white transition-colors"
+                                  viewBox="0 0 24 24"
                                   fill="none"
                                   stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M20 12H4"
+                                  <circle
+                                    cx="12"
+                                    cy="12"
+                                    r="8"
+                                    className="group-hover:animate-pulse"
                                   />
+                                  <path d="M8 12h8" />
                                 </svg>
                               </button>
                             </div>
