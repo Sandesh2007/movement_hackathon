@@ -19,9 +19,9 @@ export function Sidebar({
   const walletAddress = wallets[0]?.address || "";
 
   const navItems = [
+    { href: "/overview", label: "Overview" },
     { href: "/chat", label: "New Chat" },
     { href: "/swap", label: "Swap" },
-    { href: "/overview", label: "Overview" },
     { href: "/positions", label: "Move Position" },
   ];
 

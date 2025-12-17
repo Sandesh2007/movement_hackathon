@@ -120,13 +120,6 @@ function PositionsPageContent() {
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Check for view query parameter on mount
-  useEffect(() => {
-    const view = searchParams.get("view");
-    if (view === "lend") {
-      setViewMode("lend");
-    }
-  }, [searchParams]);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [brokers, setBrokers] = useState<BrokerEntry[]>([]);
   const [loadingBrokers, setLoadingBrokers] = useState<boolean>(false);
@@ -138,6 +131,7 @@ function PositionsPageContent() {
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const [isSupplyModalOpen, setIsSupplyModalOpen] = useState<boolean>(false);
   const [isBorrowModalOpen, setIsBorrowModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"supply" | "borrow">("supply");
   const [selectedAsset, setSelectedAsset] = useState<MarketPosition | null>(
     null
   );
@@ -411,13 +405,28 @@ function PositionsPageContent() {
             <>
               {/* Top Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                    Equity
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg
+                      className="w-4 h-4 text-green-600 dark:text-green-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                      />
+                    </svg>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Equity
+                    </span>
                   </div>
                   <div className="text-lg font-semibold text-green-600 dark:text-green-400">
                     {loadingPortfolio ? (
-                      <span className="text-zinc-400">Loading...</span>
+                      <span className="inline-block w-16 h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
                     ) : (
                       `$${equity.toFixed(2)}`
                     )}
@@ -426,25 +435,55 @@ function PositionsPageContent() {
                     100%
                   </div>
                 </div>
-                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                    Debt
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg
+                      className="w-4 h-4 text-red-500 dark:text-red-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
+                      />
+                    </svg>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Debt
+                    </span>
                   </div>
                   <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                     {loadingPortfolio ? (
-                      <span className="text-zinc-400">Loading...</span>
+                      <span className="inline-block w-16 h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
                     ) : (
                       `$${debt.toFixed(2)}`
                     )}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                    Health factor
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg
+                      className="w-4 h-4 text-green-600 dark:text-green-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      />
+                    </svg>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Health factor
+                    </span>
                   </div>
                   <div className="text-lg font-semibold text-green-600 dark:text-green-400">
                     {loadingPortfolio ? (
-                      <span className="text-zinc-400">Loading...</span>
+                      <span className="inline-block w-12 h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
                     ) : healthFactor ? (
                       `${healthFactor.toFixed(2)}x`
                     ) : (
@@ -452,13 +491,28 @@ function PositionsPageContent() {
                     )}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                    Minimum Required Equity
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg
+                      className="w-4 h-4 text-yellow-500 dark:text-yellow-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Min. Required Equity
+                    </span>
                   </div>
                   <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
                     {loadingPortfolio ? (
-                      <span className="text-zinc-400">Loading...</span>
+                      <span className="inline-block w-20 h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
                     ) : (
                       <>
                         ${minRequiredEquity.toFixed(2)}{" "}
@@ -466,9 +520,9 @@ function PositionsPageContent() {
                       </>
                     )}
                   </div>
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
+                  <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
                     <div
-                      className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
+                      className="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all duration-700 ease-out"
                       style={{
                         width: `${Math.min(minRequiredEquityPercent, 100)}%`,
                       }}
@@ -478,29 +532,51 @@ function PositionsPageContent() {
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 mb-4">
+              <div className="flex p-1 mb-6 bg-zinc-100 dark:bg-zinc-800/50 rounded-xl backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-700/50">
                 <button
-                  onClick={() => {
-                    // Open supply modal with first available asset
-                    if (marketPositions.length > 0) {
-                      setSelectedAsset(marketPositions[0]);
-                      setIsSupplyModalOpen(true);
-                    }
-                  }}
-                  className="px-6 py-3 rounded-lg font-medium transition-colors bg-yellow-500 text-black"
+                  onClick={() => setActiveTab("supply")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    activeTab === "supply"
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25"
+                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-700/50"
+                  }`}
                 >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
                   Supply
                 </button>
                 <button
-                  onClick={() => {
-                    // Open borrow modal with first available asset
-                    if (marketPositions.length > 0) {
-                      setSelectedAsset(marketPositions[0]);
-                      setIsBorrowModalOpen(true);
-                    }
-                  }}
-                  className="px-6 py-3 rounded-lg font-medium transition-colors bg-yellow-500 text-black"
+                  onClick={() => setActiveTab("borrow")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    activeTab === "borrow"
+                      ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25"
+                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-700/50"
+                  }`}
                 >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                    />
+                  </svg>
                   Borrow
                 </button>
               </div>
@@ -558,16 +634,16 @@ function PositionsPageContent() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                           Chain/Asset
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider hidden md:table-cell">
                           Supplied
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider hidden md:table-cell">
                           Utilization
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider hidden md:table-cell">
                           Total Supplied
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider hidden md:table-cell">
                           Supply APY
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
@@ -579,11 +655,7 @@ function PositionsPageContent() {
                       {filteredAssets.map((asset) => (
                         <tr
                           key={asset.token?.id ?? asset.symbol}
-                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
-                            asset.totalSupplied > 0
-                              ? "bg-yellow-50/50 dark:bg-yellow-900/10"
-                              : ""
-                          }`}
+                          className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
@@ -618,7 +690,7 @@ function PositionsPageContent() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             <div className="text-sm text-zinc-900 dark:text-zinc-50">
                               {asset.totalSupplied > 0 ? (
                                 <>
@@ -636,12 +708,12 @@ function PositionsPageContent() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             <div className="text-sm text-zinc-900 dark:text-zinc-50">
                               {asset.utilization.toFixed(2)}%
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             <div className="text-sm text-zinc-900 dark:text-zinc-50">
                               {asset.availableLiquidity.toFixed(4)} /{" "}
                               {asset.totalSupplied.toFixed(4)}
@@ -650,7 +722,7 @@ function PositionsPageContent() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             <div className="text-sm text-zinc-900 dark:text-zinc-50">
                               {asset.supplyApy.toFixed(2)}%
                               {asset.boostedApy && asset.boostedApy > 0 && (
@@ -684,10 +756,10 @@ function PositionsPageContent() {
                                 </svg>
                               </button>
                               <button
-                                className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
+                                className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
                                 onClick={() => {
-                                  // Handle withdraw action
-                                  console.log("Withdraw", asset.symbol);
+                                  setSelectedAsset(asset);
+                                  setIsBorrowModalOpen(true);
                                 }}
                               >
                                 <svg
