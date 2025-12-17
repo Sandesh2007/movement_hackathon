@@ -51,7 +51,7 @@ export async function handleSupplyTransaction(
         const response = await signRawHash({
           address: walletAddress,
           chainType: "aptos",
-          hash: hash,
+          hash: hash as `0x${string}`,
         });
         return { signature: response.signature };
       },
@@ -108,7 +108,7 @@ export async function handleWithdrawTransaction(
         const response = await signRawHash({
           address: walletAddress,
           chainType: "aptos",
-          hash: hash,
+          hash: hash as `0x${string}`,
         });
         return { signature: response.signature };
       },
@@ -164,7 +164,7 @@ export async function handleBorrowTransaction(
         const response = await signRawHash({
           address: walletAddress,
           chainType: "aptos",
-          hash: hash,
+          hash: hash as `0x${string}`,
         });
         return { signature: response.signature };
       },
@@ -220,7 +220,7 @@ export async function handleRepayTransaction(
         const response = await signRawHash({
           address: walletAddress,
           chainType: "aptos",
-          hash: hash,
+          hash: hash as `0x${string}`,
         });
         return { signature: response.signature };
       },
