@@ -53,6 +53,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({
   const [transferError, setTransferError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const hasManuallySelectedToken = useRef(false);
 
   const aptos = useMemo(() => {
     if (!config.movementFullNode) return null;
@@ -80,14 +81,22 @@ export const TransferForm: React.FC<TransferFormProps> = ({
     );
   }, [user, ready, authenticated]);
 
+  // Initialize token selection - only set if not already selected or when initialToken changes
   useEffect(() => {
     if (initialToken) {
       setSelectedToken(initialToken);
-    } else if (balances.length > 0 && !selectedToken) {
-      const nativeToken = balances.find((b) => b.isNative);
-      setSelectedToken(nativeToken || balances[0]);
+      hasManuallySelectedToken.current = false;
+    } else if (balances.length > 0 && !hasManuallySelectedToken.current) {
+      setSelectedToken((current) => {
+        // Only set if no token is currently selected
+        if (!current) {
+          const nativeToken = balances.find((b) => b.isNative);
+          return nativeToken || balances[0];
+        }
+        return current;
+      });
     }
-  }, [balances, selectedToken, initialToken]);
+  }, [balances, initialToken]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -362,10 +371,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({
                   <button
                     key={balance.assetType}
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      hasManuallySelectedToken.current = true;
                       setSelectedToken(balance);
                       setTokenDropdownOpen(false);
                       setAmount("");
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                     }}
                     className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${
                       selectedToken?.assetType === balance.assetType

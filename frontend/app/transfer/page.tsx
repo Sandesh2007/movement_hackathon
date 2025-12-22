@@ -2,7 +2,7 @@
 
 import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Sidebar } from "../components/sidebar";
 import { RightSidebar } from "../components/right-sidebar";
 import { ThemeToggle } from "../components/themeToggle";
@@ -16,6 +16,7 @@ import {
   Ed25519Signature,
   generateSigningMessageForTransaction,
   ChainId,
+  AccountAddress,
 } from "@aptos-labs/ts-sdk";
 import { toHex } from "viem";
 
@@ -29,31 +30,17 @@ const aptos = new Aptos(
   })
 );
 
-const TOKENS = [
-  {
-    symbol: "MOVE",
-    name: "Move Coin",
-    decimals: 8,
-    coinType: "0x1::aptos_coin::AptosCoin",
-    isCoin: true,
-  },
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    decimals: 6,
-    coinType:
-      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC",
-    isCoin: true,
-  },
-  {
-    symbol: "USDT",
-    name: "Tether",
-    decimals: 6,
-    coinType:
-      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT",
-    isCoin: true,
-  },
-];
+interface TokenBalance {
+  assetType: string;
+  amount: string;
+  formattedAmount: string;
+  metadata: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  isNative: boolean;
+}
 
 export default function TransferPage() {
   const { ready, authenticated, user } = usePrivy();
@@ -63,14 +50,15 @@ export default function TransferPage() {
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
+  const [selectedToken, setSelectedToken] = useState<TokenBalance | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [step, setStep] = useState<string>("");
-  const [balances, setBalances] = useState<Record<string, string>>({});
+  const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [loadingBalances, setLoadingBalances] = useState(true);
   const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const movementWallet = useMemo(() => {
     if (!ready || !authenticated || !user?.linkedAccounts) {
@@ -102,15 +90,8 @@ export default function TransferPage() {
       );
       const data = await res.json();
       if (data.success && data.balances) {
-        const newBalances: Record<string, string> = {};
-        for (const token of TOKENS) {
-          const found = data.balances.find(
-            (b: any) =>
-              b.metadata?.symbol?.toUpperCase() === token.symbol.toUpperCase()
-          );
-          newBalances[token.symbol] = found ? found.formattedAmount : "0";
-        }
-        setBalances(newBalances);
+        const allBalances: TokenBalance[] = data.balances;
+        setBalances(allBalances);
       }
     } catch (err) {
       console.error("Failed to fetch balances:", err);
@@ -122,6 +103,34 @@ export default function TransferPage() {
   useEffect(() => {
     fetchBalances();
   }, [movementWallet?.address]);
+
+  // Update selected token when balances change and no token is selected
+  useEffect(() => {
+    if (balances.length > 0 && !selectedToken) {
+      const nativeToken = balances.find((b) => b.isNative);
+      setSelectedToken(nativeToken || balances[0]);
+    }
+  }, [balances, selectedToken]);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setTokenDropdownOpen(false);
+      }
+    };
+
+    if (tokenDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [tokenDropdownOpen]);
 
   const handleTransfer = async () => {
     if (!recipient || !amount || parseFloat(amount) <= 0) {
@@ -146,20 +155,50 @@ export default function TransferPage() {
         throw new Error("Wallet address or public key not found");
       }
 
-      const rawAmount = Math.floor(
-        parseFloat(amount) * Math.pow(10, selectedToken.decimals)
-      ).toString();
+      if (!selectedToken) {
+        throw new Error("No token selected");
+      }
+
+      const rawAmountValue = Math.floor(
+        parseFloat(amount) * Math.pow(10, selectedToken.metadata.decimals)
+      );
+      const rawAmount = rawAmountValue.toString();
 
       setStep("Building transaction...");
 
-      const rawTxn = await aptos.transaction.build.simple({
-        sender: senderAddress,
-        data: {
-          function: "0x1::coin::transfer",
-          typeArguments: [selectedToken.coinType],
-          functionArguments: [recipient, rawAmount],
-        },
-      });
+      debugger;
+
+      const assetType = selectedToken.assetType.trim();
+
+      let rawTxn;
+
+      // For native tokens, use coin::transfer
+      // For fungible assets, use primary_fungible_store::transfer
+      if (assetType==="0x1::aptos_coin::AptosCoin" || assetType==="0x1::aptos_coin::AptosCoin") {
+        rawTxn = await aptos.transaction.build.simple({
+          sender: senderAddress,
+          data: {
+            function: "0x1::coin::transfer",
+            typeArguments: ["0x1::aptos_coin::AptosCoin"],
+            functionArguments: [recipient, rawAmount],
+          },
+        });
+      } else {
+        // For fungible assets, use primary_fungible_store::transfer
+        // The assetType is the fungible asset metadata address
+        // Function signature: transfer<Metadata>(metadata_address: address, to: address, amount: u64)
+        const assetType = selectedToken.assetType.trim();
+        const recipientAddress = AccountAddress.fromString(recipient);
+
+        rawTxn = await aptos.transaction.build.simple({
+          sender: senderAddress,
+          data: {
+            function: "0x1::primary_fungible_store::transfer",
+            typeArguments: ["0x1::fungible_asset::Metadata"],
+            functionArguments: [assetType, recipientAddress, rawAmount],
+          },
+        });
+      }
 
       const txnObj = rawTxn as any;
       if (txnObj.rawTransaction) {
@@ -220,15 +259,8 @@ export default function TransferPage() {
         );
         const data = await res.json();
         if (data.success && data.balances) {
-          const newBalances: Record<string, string> = {};
-          for (const token of TOKENS) {
-            const found = data.balances.find(
-              (b: any) =>
-                b.metadata?.symbol?.toUpperCase() === token.symbol.toUpperCase()
-            );
-            newBalances[token.symbol] = found ? found.formattedAmount : "0";
-          }
-          setBalances(newBalances);
+          const allBalances: TokenBalance[] = data.balances;
+          setBalances(allBalances);
         }
       }
     } catch (err: any) {
@@ -362,18 +394,37 @@ export default function TransferPage() {
                       type="button"
                       onClick={() => setTokenDropdownOpen(!tokenDropdownOpen)}
                       className="w-full px-5 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-700/50 bg-zinc-50/50 dark:bg-zinc-800/50 text-zinc-950 dark:text-zinc-50 outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all cursor-pointer font-medium text-left flex items-center gap-4"
+                      disabled={!selectedToken}
                     >
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-purple-500/20">
-                        {selectedToken.symbol.charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold">
-                          {selectedToken.symbol}
-                        </div>
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {selectedToken.name}
-                        </div>
-                      </div>
+                      {selectedToken ? (
+                        <>
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-full text-white font-bold text-sm shadow-lg ${
+                              selectedToken.isNative
+                                ? "bg-gradient-to-br from-purple-500 to-violet-600 shadow-purple-500/20"
+                                : "bg-gradient-to-br from-zinc-500 to-zinc-600 shadow-zinc-500/20"
+                            }`}
+                          >
+                            {selectedToken.metadata.symbol.length <= 4
+                              ? selectedToken.metadata.symbol.charAt(0)
+                              : selectedToken.metadata.symbol
+                                  .substring(0, 2)
+                                  .toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold">
+                              {selectedToken.metadata.symbol}
+                            </div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {selectedToken.metadata.name}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          Select a token
+                        </span>
+                      )}
                       <svg
                         className={`w-5 h-5 text-zinc-400 transition-transform duration-200 ${tokenDropdownOpen ? "rotate-180" : ""}`}
                         fill="none"
@@ -389,59 +440,62 @@ export default function TransferPage() {
                       </svg>
                     </button>
 
-                    {tokenDropdownOpen && (
-                      <div className="absolute z-20 mt-2 w-full rounded-2xl border border-zinc-200 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 shadow-2xl shadow-zinc-200/50 dark:shadow-zinc-950/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        {(TOKENS.filter(
-                          (token) =>
-                            parseFloat(balances[token.symbol] || "0") > 0
-                        ).length > 0
-                          ? TOKENS.filter(
-                              (token) =>
-                                parseFloat(balances[token.symbol] || "0") > 0
-                            )
-                          : TOKENS
-                        ).map((token) => (
+                    {tokenDropdownOpen && balances.length > 0 && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute z-20 mt-2 w-full rounded-2xl border border-zinc-200 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 shadow-2xl shadow-zinc-200/50 dark:shadow-zinc-950/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 overflow-y-auto"
+                      >
+                        {balances.map((balance) => (
                           <button
-                            key={token.symbol}
+                            key={balance.assetType}
                             type="button"
-                            onClick={() => {
-                              setSelectedToken(token);
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedToken(balance);
                               setTokenDropdownOpen(false);
                             }}
                             className={`w-full px-5 py-4 flex items-center gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors ${
-                              selectedToken.symbol === token.symbol
+                              selectedToken?.assetType === balance.assetType
                                 ? "bg-purple-50 dark:bg-purple-900/20"
                                 : ""
                             }`}
                           >
                             <div
                               className={`flex h-10 w-10 items-center justify-center rounded-full text-white font-bold text-sm shadow-lg ${
-                                token.symbol === "MOVE"
+                                balance.isNative
                                   ? "bg-gradient-to-br from-purple-500 to-violet-600 shadow-purple-500/20"
-                                  : token.symbol === "USDC"
-                                    ? "bg-gradient-to-br from-blue-500 to-cyan-500 shadow-blue-500/20"
-                                    : "bg-gradient-to-br from-emerald-500 to-teal-500 shadow-emerald-500/20"
+                                  : "bg-gradient-to-br from-zinc-500 to-zinc-600 shadow-zinc-500/20"
                               }`}
                             >
-                              {token.symbol.charAt(0)}
+                              {balance.metadata.symbol.length <= 4
+                                ? balance.metadata.symbol.charAt(0)
+                                : balance.metadata.symbol
+                                    .substring(0, 2)
+                                    .toUpperCase()}
                             </div>
                             <div className="flex-1 text-left">
                               <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                {token.symbol}
+                                {balance.metadata.symbol}
                               </div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                {token.name}
+                                {balance.metadata.name}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                {balances[token.symbol] || "0"}
+                                {parseFloat(
+                                  balance.formattedAmount
+                                ).toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 6,
+                                })}
                               </div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
                                 Balance
                               </div>
                             </div>
-                            {selectedToken.symbol === token.symbol && (
+                            {selectedToken?.assetType === balance.assetType && (
                               <svg
                                 className="w-5 h-5 text-purple-500"
                                 fill="none"
@@ -461,15 +515,22 @@ export default function TransferPage() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-3 flex items-center justify-between px-1">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                      Available Balance
-                    </span>
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      {balances[selectedToken.symbol] || "0"}{" "}
-                      {selectedToken.symbol}
-                    </span>
-                  </div>
+                  {selectedToken && (
+                    <div className="mt-3 flex items-center justify-between px-1">
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Available Balance
+                      </span>
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                        {parseFloat(
+                          selectedToken.formattedAmount
+                        ).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 6,
+                        })}{" "}
+                        {selectedToken.metadata.symbol}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Recipient */}
@@ -516,14 +577,14 @@ export default function TransferPage() {
                       placeholder="0.00"
                       className="w-full px-5 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-700/50 bg-zinc-50/50 dark:bg-zinc-800/50 text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-lg font-semibold"
                     />
-                    <button
-                      onClick={() =>
-                        setAmount(balances[selectedToken.symbol] || "0")
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-wider hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-                    >
-                      Max
-                    </button>
+                    {selectedToken && (
+                      <button
+                        onClick={() => setAmount(selectedToken.formattedAmount)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-wider hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                      >
+                        Max
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -603,18 +664,24 @@ export default function TransferPage() {
                 <button
                   onClick={handleTransfer}
                   disabled={
+                    !selectedToken ||
                     !recipient ||
                     !amount ||
                     parseFloat(amount) <= 0 ||
                     submitting
                   }
                   className={`relative w-full py-4 rounded-2xl font-bold text-lg transition-all duration-300 overflow-hidden ${
-                    recipient && amount && parseFloat(amount) > 0 && !submitting
+                    selectedToken &&
+                    recipient &&
+                    amount &&
+                    parseFloat(amount) > 0 &&
+                    !submitting
                       ? "bg-gradient-to-r from-purple-600 to-violet-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
                   }`}
                 >
-                  {recipient &&
+                  {selectedToken &&
+                    recipient &&
                     amount &&
                     parseFloat(amount) > 0 &&
                     !submitting && (
@@ -659,7 +726,7 @@ export default function TransferPage() {
                             d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                           />
                         </svg>
-                        Send {selectedToken.symbol}
+                        Send {selectedToken?.metadata.symbol || "Tokens"}
                       </>
                     )}
                   </span>
