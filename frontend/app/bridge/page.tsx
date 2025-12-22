@@ -8,11 +8,36 @@ import { RightSidebar } from "../components/right-sidebar";
 import { ThemeToggle } from "../components/themeToggle";
 
 const CHAINS = [
-  { id: "ethereum", name: "Ethereum", symbol: "ETH", color: "from-blue-500 to-indigo-600" },
-  { id: "arbitrum", name: "Arbitrum", symbol: "ARB", color: "from-sky-400 to-blue-500" },
-  { id: "base", name: "Base", symbol: "BASE", color: "from-blue-600 to-blue-700" },
-  { id: "optimism", name: "Optimism", symbol: "OP", color: "from-red-500 to-rose-600" },
-  { id: "movement", name: "Movement", symbol: "MOVE", color: "from-yellow-400 to-amber-500" },
+  {
+    id: "ethereum",
+    name: "Ethereum",
+    symbol: "ETH",
+    color: "from-blue-500 to-indigo-600",
+  },
+  {
+    id: "arbitrum",
+    name: "Arbitrum",
+    symbol: "ARB",
+    color: "from-sky-400 to-blue-500",
+  },
+  {
+    id: "base",
+    name: "Base",
+    symbol: "BASE",
+    color: "from-blue-600 to-blue-700",
+  },
+  {
+    id: "optimism",
+    name: "Optimism",
+    symbol: "OP",
+    color: "from-red-500 to-rose-600",
+  },
+  {
+    id: "movement",
+    name: "Movement",
+    symbol: "MOVE",
+    color: "from-yellow-400 to-amber-500",
+  },
 ];
 
 const TOKENS = ["ETH", "USDC", "USDT", "WBTC"];
@@ -77,7 +102,8 @@ export default function BridgePage() {
     setTimeout(() => setBridging(false), 2000);
   };
 
-  const canBridge = amount && parseFloat(amount) > 0 && fromChain !== toChain && !bridging;
+  const canBridge =
+    amount && parseFloat(amount) > 0 && fromChain !== toChain && !bridging;
 
   // Show loading while checking authentication status
   if (!ready) {
@@ -203,8 +229,14 @@ export default function BridgePage() {
                     From
                   </label>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${CHAINS.find(c => c.id === fromChain)?.color} flex items-center justify-center shadow-md`}>
-                      <span className="text-white text-xs font-bold">{CHAINS.find(c => c.id === fromChain)?.symbol.charAt(0)}</span>
+                    <div
+                      className={`w-8 h-8 rounded-lg bg-gradient-to-br ${CHAINS.find((c) => c.id === fromChain)?.color} flex items-center justify-center shadow-md`}
+                    >
+                      <span className="text-white text-xs font-bold">
+                        {CHAINS.find((c) => c.id === fromChain)?.symbol.charAt(
+                          0
+                        )}
+                      </span>
                     </div>
                     <select
                       value={fromChain}
@@ -218,8 +250,18 @@ export default function BridgePage() {
                         </option>
                       ))}
                     </select>
-                    <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <svg
+                      className="w-4 h-4 text-zinc-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -232,8 +274,18 @@ export default function BridgePage() {
                     className="p-2.5 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-4 border-white dark:border-zinc-900 shadow-lg text-white hover:scale-110 transition-all duration-200 disabled:opacity-50"
                     aria-label="Swap chains"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -244,8 +296,12 @@ export default function BridgePage() {
                     To
                   </label>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${CHAINS.find(c => c.id === toChain)?.color} flex items-center justify-center shadow-md`}>
-                      <span className="text-white text-xs font-bold">{CHAINS.find(c => c.id === toChain)?.symbol.charAt(0)}</span>
+                    <div
+                      className={`w-8 h-8 rounded-lg bg-gradient-to-br ${CHAINS.find((c) => c.id === toChain)?.color} flex items-center justify-center shadow-md`}
+                    >
+                      <span className="text-white text-xs font-bold">
+                        {CHAINS.find((c) => c.id === toChain)?.symbol.charAt(0)}
+                      </span>
                     </div>
                     <select
                       value={toChain}
@@ -259,8 +315,18 @@ export default function BridgePage() {
                         </option>
                       ))}
                     </select>
-                    <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <svg
+                      className="w-4 h-4 text-zinc-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -298,14 +364,28 @@ export default function BridgePage() {
                           </option>
                         ))}
                       </select>
-                      <svg className="w-3 h-3 text-zinc-400 -ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className="w-3 h-3 text-zinc-400 -ml-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">Balance: 0.00 {token}</span>
-                    <button className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors">MAX</button>
+                    <span className="text-xs text-zinc-400">
+                      Balance: 0.00 {token}
+                    </span>
+                    <button className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors">
+                      MAX
+                    </button>
                   </div>
                 </div>
               </div>
@@ -315,31 +395,61 @@ export default function BridgePage() {
                 <div className="relative mb-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-100 dark:border-blue-800/30">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
-                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Route Found</span>
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      Route Found
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">You receive</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        You receive
+                      </span>
                       <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                         ~{amount} {token}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Est. time</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Est. time
+                      </span>
                       <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
                         ~15 min
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Fee</span>
-                      <span className="text-xs font-semibold text-green-600 dark:text-green-400">~0.1%</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Fee
+                      </span>
+                      <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                        ~0.1%
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -358,16 +468,41 @@ export default function BridgePage() {
                 <span className="relative flex items-center justify-center gap-2">
                   {bridging ? (
                     <>
-                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <svg
+                        className="w-5 h-5 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
                       </svg>
                       Bridging...
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
                       </svg>
                       Bridge {token}
                     </>

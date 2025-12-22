@@ -21,6 +21,16 @@ export const MessageFromA2A: React.FC<MessageActionRenderProps> = ({
       return null;
   }
 
+  // Don't render if agentName or task is missing/empty
+  if (
+    !args?.agentName ||
+    !args?.task ||
+    args.agentName.trim() === "" ||
+    args.task.trim() === ""
+  ) {
+    return null;
+  }
+
   const agentStyle = getAgentStyle(args.agentName);
 
   return (

@@ -1,18 +1,18 @@
 """
-Bridge Agent - Movement Network Cross-Chain Bridge Agent
+Transfer Agent - Movement Network Token Transfer Agent
 
-This module implements an AI-powered agent that helps users bridge assets
-between different blockchain networks using the Movement Bridge.
+This module implements an AI-powered agent that helps users transfer tokens
+on Movement Network between addresses.
 
 ARCHITECTURE OVERVIEW:
 ----------------------
-The agent follows the same multi-layered architecture as the Balance Agent:
+The agent follows the same multi-layered architecture as other agents:
 
 1. LangGraph Agent Layer:
    - Uses LangGraph v1.0+ create_agent() API to build the core AI agent
    - Powered by OpenAI's ChatOpenAI model (configurable via OPENAI_MODEL env var)
-   - Has access to tools: initiate_bridge(), check_bridge_status(), get_bridge_fees()
-   - Uses a system prompt that guides the agent on how to handle bridge operations
+   - Has access to tools: execute_transfer(), check_transfer_status(), estimate_transfer_fees()
+   - Uses a system prompt that guides the agent on how to handle transfer operations
 
 2. A2A (Agent-to-Agent) Integration Layer:
    - Implements AgentExecutor interface for A2A protocol compatibility
@@ -33,43 +33,42 @@ The agent follows the same multi-layered architecture as the Balance Agent:
 
 WORKFLOW:
 ---------
-1. User sends a query (e.g., "bridge 1 ETH from Ethereum to Movement")
+1. User sends a query (e.g., "transfer 1 MOVE to 0x...")
 2. RequestContext captures the user input
-3. BridgeAgentExecutor.execute() is called
-4. BridgeAgent.invoke() processes the query:
+3. TransferAgentExecutor.execute() is called
+4. TransferAgent.invoke() processes the query:
    - Validates OpenAI API key
    - Invokes LangGraph agent with user query
-   - Agent uses tools to interact with Movement Bridge
+   - Agent uses tools to execute transfers
    - Extracts assistant response from agent result
 5. Response is formatted as JSON and sent back via EventQueue
 
 KEY COMPONENTS:
 ---------------
-- BridgeAgent: Core agent class that wraps LangGraph agent and ADK Runner
-- BridgeAgentExecutor: Implements A2A AgentExecutor interface
-- Tools: initiate_bridge(), check_bridge_status(), get_bridge_fees()
-- create_bridge_agent_app(): Factory function to create A2A server
+- TransferAgent: Core agent class that wraps LangGraph agent and ADK Runner
+- TransferAgentExecutor: Implements A2A AgentExecutor interface
+- Tools: execute_transfer(), check_transfer_status(), estimate_transfer_fees()
+- create_transfer_agent_app(): Factory function to create A2A server
 
 ENVIRONMENT VARIABLES:
 ----------------------
 - OPENAI_API_KEY: Required - OpenAI API key for LLM access
 - OPENAI_MODEL: Optional - Model name (default: "gpt-4o-mini")
-- MOVEMENT_RPC_URL: Required - Movement Network RPC endpoint
-- ETHEREUM_RPC_URL: Optional - Ethereum RPC endpoint
-- BRIDGE_CONTRACT_ADDRESS: Required - Movement Bridge contract address
+- MOVEMENT_RPC_URL: Optional - Movement Network RPC endpoint
 
 USAGE:
 ------
 Mounted mode:
-    from app.agents.bridge.agent import create_bridge_agent_app
-    app.mount("/bridge", create_bridge_agent_app(base_url="http://localhost:8000/bridge"))
+    from app.agents.transfer.agent import create_transfer_agent_app
+    app.mount("/transfer", create_transfer_agent_app(card_url="http://localhost:8000/transfer"))
 
 NOTES:
 ------
-- Uses Web3.py for blockchain interactions
-- Supports cross-chain bridging to/from Movement Network
-- Monitors bridge transaction status
-- Provides fee estimates before bridging
+- Works exclusively on Movement Network
+- Supports native MOVE token and ERC-20 token transfers
+- Validates recipient addresses (66 characters for Movement Network)
+- Provides fee estimates before executing transfers
+- Monitors transfer transaction status
 """
 
 import os
@@ -116,7 +115,6 @@ EMPTY_RESPONSE_MESSAGE = (
 ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
 ENV_OPENAI_MODEL = "OPENAI_MODEL"
 ENV_MOVEMENT_RPC_URL = "MOVEMENT_RPC_URL"
-ENV_BRIDGE_CONTRACT_ADDRESS = "BRIDGE_CONTRACT_ADDRESS"
 
 # Message types
 MESSAGE_TYPE_AI = "ai"
@@ -138,146 +136,142 @@ ERROR_GENERIC_PREFIX = "I encountered an error while processing your request: "
 
 def get_system_prompt() -> str:
     """Get the system prompt for the agent."""
-    return """You are a helpful Web3 assistant specializing in cross-chain asset bridging using the Movement Bridge.
+    return """You are a helpful Web3 assistant specializing in token transfers on Movement Network.
 
-When users ask about bridging:
-1. Extract the source chain (ethereum, bnb, polygon, etc.)
-2. Extract the destination chain (usually Movement Network)
-3. Extract the asset type and amount (e.g., "1 ETH", "100 USDC")
-4. Extract the recipient address if provided (format: 0x...)
-5. Use the appropriate tool to handle the bridge operation
+CRITICAL: This application works EXCLUSIVELY with Movement Network. All operations default to Movement Network.
+
+CRITICAL: Address Validation Rules
+- Movement Network addresses are 66 characters long (0x + 64 hex characters)
+- Addresses must start with "0x" and contain valid hexadecimal characters
+- NEVER reject an address because it's 66 characters - it's a valid Movement Network address
+- If an address starts with "0x" and contains valid hex characters, it is VALID
+
+When users ask about transferring tokens:
+1. Extract the token symbol (e.g., "MOVE", "USDC", "USDT", "USDC.e", "USDT.e")
+   - If no token specified, default to "MOVE" (native token)
+2. Extract the amount to transfer (e.g., "1", "100", "0.5")
+3. Extract the recipient address (must be 66 characters, starting with 0x)
+4. Extract the sender address if provided (otherwise use connected wallet)
+5. Use the appropriate tool to estimate fees or execute the transfer
 
 Available operations:
-- Initiate a bridge transaction (requires: source chain, destination chain, asset, amount, recipient)
-- Check bridge transaction status (requires: transaction hash)
-- Get bridge fee estimates (requires: source chain, destination chain, asset, amount)
+- Execute transfer transaction (requires: token, amount, to_address, from_address)
+- Check transfer transaction status (requires: transaction_hash)
+- Estimate transfer fees (requires: token, amount, to_address)
+
+Common token symbols on Movement Network:
+- MOVE (native token)
+- USDC.e, USDT.e (verified stablecoins)
+- WBTC.e, WETH.e (verified wrapped tokens)
+- Other tokens from the Movement Network token registry
 
 If the user doesn't provide all required information, politely ask for it.
-Always validate that addresses start with 0x and are 42 characters long.
-Provide clear fee estimates before initiating any bridge transaction.
-Explain the expected bridge completion time (typically 10-30 minutes).
+Always validate recipient addresses (must be 66 characters, starting with 0x).
+Provide fee estimates before executing transfers.
+Explain that transfers are irreversible once confirmed.
 If there's an error, explain it clearly and suggest alternatives."""
-
-
-def get_port() -> int:
-    """Get the port number from environment or default."""
-    return int(os.getenv("AGENTS_PORT", "8000"))
-
-
-def get_card_url(port: int) -> str:
-    """Get the card URL from environment or construct from port."""
-    return os.getenv("RENDER_EXTERNAL_URL", f"http://localhost:{port}")
 
 
 def create_agent_skill() -> AgentSkill:
     """Create the agent skill definition."""
     return AgentSkill(
-        id="bridge_agent",
-        name="Bridge Agent",
-        description="Bridge Agent for cross-chain asset transfers via Movement Bridge",
-        tags=["bridge", "cross-chain", "movement", "ethereum", "transfer"],
+        id="transfer_agent",
+        name="Transfer Agent",
+        description="Transfer Agent for token transfers on Movement Network",
+        tags=["transfer", "send", "movement", "tokens", "web3", "crypto"],
         examples=[
-            "bridge 1 ETH from Ethereum to Movement",
-            "bridge 100 USDC from BNB to Movement",
-            "check bridge status for transaction 0x...",
-            "what are the fees to bridge 1 ETH?",
-            "how long does bridging take?",
+            "transfer 1 MOVE to 0x...",
+            "send 100 USDC to address",
+            "transfer tokens",
+            "send MOVE to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+            "check transfer status for 0x...",
         ],
     )
 
 
-def create_agent_card(port: int) -> AgentCard:
-    """Create the public agent card."""
-    card_url = get_card_url(port)
-    skill = create_agent_skill()
-    return AgentCard(
-        name="bridge",
-        description=(
-            "LangGraph powered agent that helps bridge assets "
-            "between chains using Movement Bridge"
-        ),
-        url=card_url,
-        version="1.0.0",
-        default_input_modes=["text"],
-        default_output_modes=["text"],
-        capabilities=AgentCapabilities(streaming=True),
-        skills=[skill],
-        supports_authenticated_extended_card=False,
-    )
-
-
 @tool
-def initiate_bridge(
-    source_chain: str,
-    destination_chain: str,
-    asset: str,
+def execute_transfer(
+    token: str,
     amount: str,
-    recipient_address: str,
+    to_address: str,
+    from_address: str = "",
 ) -> str:
-    """Initiate a cross-chain bridge transaction.
+    """Execute a token transfer transaction.
 
     Args:
-        source_chain: The source blockchain (ethereum, bnb, polygon, etc.)
-        destination_chain: The destination blockchain (usually movement)
-        asset: The asset to bridge (ETH, USDC, USDT, etc.)
-        amount: The amount to bridge (as string)
-        recipient_address: The recipient address on destination chain (0x...)
+        token: The token symbol to transfer (e.g., "MOVE", "USDC", "USDT", "USDC.e", "USDT.e")
+               Defaults to "MOVE" if not specified
+        amount: The amount to transfer (as string, e.g., "1", "100", "0.5")
+        to_address: The recipient address (66 characters, must start with 0x)
+        from_address: The sender address (66 characters, must start with 0x).
+                      If empty, uses connected wallet address
 
     Returns:
-        Transaction details as a string
+        Transfer transaction details as a string
     """
-    # TODO: Implement actual bridge initiation with Movement Bridge contract
+    # Validate address format
+    if not to_address.startswith("0x") or len(to_address) != 66:
+        return json.dumps(
+            {
+                "status": "error",
+                "error": "Invalid recipient address. Movement Network addresses must be 66 characters and start with 0x.",
+                "message": "Please provide a valid Movement Network address (66 characters, starting with 0x)",
+            }
+        )
+
+    # TODO: Implement actual transfer execution via Movement Network smart contracts
     return json.dumps(
         {
             "status": "initiated",
-            "source_chain": source_chain,
-            "destination_chain": destination_chain,
-            "asset": asset,
+            "token": token.upper() if token else "MOVE",
             "amount": amount,
-            "recipient": recipient_address,
+            "from_address": from_address or "connected_wallet",
+            "to_address": to_address,
             "tx_hash": "0x1234567890abcdef...",
-            "estimated_completion": "10-30 minutes",
-            "message": "Bridge transaction initiated successfully. Please wait for confirmation.",
+            "estimated_time": "30-60 seconds",
+            "network": "movement",
+            "message": f"Transfer transaction initiated: {amount} {token.upper() if token else 'MOVE'} -> {to_address[:10]}...{to_address[-8:]}",
         }
     )
 
 
 @tool
-def check_bridge_status(tx_hash: str) -> str:
-    """Check the status of a bridge transaction.
+def check_transfer_status(tx_hash: str) -> str:
+    """Check the status of a transfer transaction.
 
     Args:
-        tx_hash: The transaction hash of the bridge operation (0x...)
+        tx_hash: The transaction hash of the transfer operation (0x...)
 
     Returns:
-        Bridge transaction status as a string
+        Transfer transaction status as a string
     """
-    # TODO: Implement actual bridge status checking
+    # TODO: Implement actual transaction status checking
     return json.dumps(
         {
             "tx_hash": tx_hash,
-            "status": "pending",
-            "confirmations": "5/12",
-            "estimated_time_remaining": "15 minutes",
-            "message": "Bridge transaction is being processed.",
+            "status": "completed",
+            "confirmations": "12/12",
+            "token": "MOVE",
+            "amount": "1",
+            "from_address": "0x...",
+            "to_address": "0x...",
+            "message": "Transfer transaction completed successfully",
         }
     )
 
 
 @tool
-def get_bridge_fees(
-    source_chain: str,
-    destination_chain: str,
-    asset: str,
+def estimate_transfer_fees(
+    token: str,
     amount: str,
+    to_address: str,
 ) -> str:
-    """Get fee estimates for a bridge transaction.
+    """Estimate fees for a transfer transaction.
 
     Args:
-        source_chain: The source blockchain (ethereum, bnb, polygon, etc.)
-        destination_chain: The destination blockchain (usually movement)
-        asset: The asset to bridge (ETH, USDC, USDT, etc.)
-        amount: The amount to bridge (as string)
+        token: The token symbol to transfer (e.g., "MOVE", "USDC", "USDT")
+        amount: The amount to transfer (as string, e.g., "1", "100", "0.5")
+        to_address: The recipient address (66 characters, must start with 0x)
 
     Returns:
         Fee estimates as a string
@@ -285,21 +279,20 @@ def get_bridge_fees(
     # TODO: Implement actual fee calculation
     return json.dumps(
         {
-            "source_chain": source_chain,
-            "destination_chain": destination_chain,
-            "asset": asset,
+            "token": token.upper() if token else "MOVE",
             "amount": amount,
-            "bridge_fee": "0.001 ETH",
-            "gas_estimate": "0.002 ETH",
-            "total_fee": "0.003 ETH",
-            "message": "Estimated fees for bridge transaction.",
+            "to_address": to_address,
+            "network_fee": "0.001 MOVE",
+            "total_cost": f"{float(amount) + 0.001} {token.upper() if token else 'MOVE'}",
+            "estimated_time": "30-60 seconds",
+            "message": f"Estimated fees for transferring {amount} {token.upper() if token else 'MOVE'}",
         }
     )
 
 
 def get_tools() -> List[Any]:
     """Get the list of tools available to the agent."""
-    return [initiate_bridge, check_bridge_status, get_bridge_fees]
+    return [execute_transfer, check_transfer_status, estimate_transfer_fees]
 
 
 def validate_openai_api_key() -> None:
@@ -392,11 +385,11 @@ def format_error_message(error: Exception) -> str:
     return f"{ERROR_GENERIC_PREFIX}{error}. Please try again."
 
 
-class BridgeAgent:
+class TransferAgent:
     def __init__(self):
         self._agent = self._build_agent()
         self._runner = Runner(
-            app_name="bridgeagent",
+            app_name="transferagent",
             agent=self._agent,
             artifact_service=InMemoryArtifactService(),
             session_service=InMemorySessionService(),
@@ -461,9 +454,9 @@ def create_message(content: str) -> Message:
     )
 
 
-class BridgeAgentExecutor(AgentExecutor):
+class TransferAgentExecutor(AgentExecutor):
     def __init__(self):
-        self.agent = BridgeAgent()
+        self.agent = TransferAgent()
 
     async def execute(
         self,
@@ -486,20 +479,20 @@ class BridgeAgentExecutor(AgentExecutor):
         raise NotImplementedError("cancel not supported")
 
 
-def create_bridge_agent_app(card_url: str) -> A2AStarletteApplication:
-    """Create and configure the A2A server application for the bridge agent.
+def create_transfer_agent_app(card_url: str) -> A2AStarletteApplication:
+    """Create and configure the A2A server application for the transfer agent.
 
     Args:
         card_url: The base URL where the agent card will be accessible
 
     Returns:
-        A2AStarletteApplication instance configured for the bridge agent
+        A2AStarletteApplication instance configured for the transfer agent
     """
     agent_card = AgentCard(
-        name="bridge",
+        name="transfer",
         description=(
-            "LangGraph powered agent that helps bridge assets "
-            "between chains using Movement Bridge"
+            "LangGraph powered agent that helps transfer tokens "
+            "on Movement Network between addresses"
         ),
         url=card_url,
         version="1.0.0",
@@ -510,7 +503,7 @@ def create_bridge_agent_app(card_url: str) -> A2AStarletteApplication:
         supports_authenticated_extended_card=False,
     )
     request_handler = DefaultRequestHandler(
-        agent_executor=BridgeAgentExecutor(),
+        agent_executor=TransferAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
     return A2AStarletteApplication(

@@ -302,7 +302,6 @@ class TestGetBalances:
                 # Real API returns "MOVE" as the symbol
                 assert first_balance["metadata"].get("symbol") in ["MOV", "MOVE"]
 
-
     def test_get_balances_empty_balances(self) -> None:
         """Test handling of empty balance response using real API."""
         sentio_url = get_indexer_url_by_provider("sentio")
@@ -314,7 +313,6 @@ class TestGetBalances:
         # May have zero balances, which is valid
         assert isinstance(result.get("balances", []), list)
         assert result.get("total_fetched", 0) >= 0
-
 
     def test_get_balances_request_structure(self) -> None:
         """Test that real API request succeeds and returns proper structure."""
@@ -450,4 +448,3 @@ class TestGetBalancesRealAPI:
         if result["success"]:
             assert "total_fetched" in result
             assert "filtered_out" in result
-

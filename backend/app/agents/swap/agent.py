@@ -1,18 +1,18 @@
 """
-Bridge Agent - Movement Network Cross-Chain Bridge Agent
+Swap Agent - Movement Network Token Swap Agent
 
-This module implements an AI-powered agent that helps users bridge assets
-between different blockchain networks using the Movement Bridge.
+This module implements an AI-powered agent that helps users swap tokens
+on Movement Network using decentralized exchanges.
 
 ARCHITECTURE OVERVIEW:
 ----------------------
-The agent follows the same multi-layered architecture as the Balance Agent:
+The agent follows the same multi-layered architecture as other agents:
 
 1. LangGraph Agent Layer:
    - Uses LangGraph v1.0+ create_agent() API to build the core AI agent
    - Powered by OpenAI's ChatOpenAI model (configurable via OPENAI_MODEL env var)
-   - Has access to tools: initiate_bridge(), check_bridge_status(), get_bridge_fees()
-   - Uses a system prompt that guides the agent on how to handle bridge operations
+   - Has access to tools: get_swap_quote(), execute_swap(), check_swap_status()
+   - Uses a system prompt that guides the agent on how to handle swap operations
 
 2. A2A (Agent-to-Agent) Integration Layer:
    - Implements AgentExecutor interface for A2A protocol compatibility
@@ -33,43 +33,41 @@ The agent follows the same multi-layered architecture as the Balance Agent:
 
 WORKFLOW:
 ---------
-1. User sends a query (e.g., "bridge 1 ETH from Ethereum to Movement")
+1. User sends a query (e.g., "swap 1 MOVE for USDC")
 2. RequestContext captures the user input
-3. BridgeAgentExecutor.execute() is called
-4. BridgeAgent.invoke() processes the query:
+3. SwapAgentExecutor.execute() is called
+4. SwapAgent.invoke() processes the query:
    - Validates OpenAI API key
    - Invokes LangGraph agent with user query
-   - Agent uses tools to interact with Movement Bridge
+   - Agent uses tools to get quotes and execute swaps
    - Extracts assistant response from agent result
 5. Response is formatted as JSON and sent back via EventQueue
 
 KEY COMPONENTS:
 ---------------
-- BridgeAgent: Core agent class that wraps LangGraph agent and ADK Runner
-- BridgeAgentExecutor: Implements A2A AgentExecutor interface
-- Tools: initiate_bridge(), check_bridge_status(), get_bridge_fees()
-- create_bridge_agent_app(): Factory function to create A2A server
+- SwapAgent: Core agent class that wraps LangGraph agent and ADK Runner
+- SwapAgentExecutor: Implements A2A AgentExecutor interface
+- Tools: get_swap_quote(), execute_swap(), check_swap_status()
+- create_swap_agent_app(): Factory function to create A2A server
 
 ENVIRONMENT VARIABLES:
 ----------------------
 - OPENAI_API_KEY: Required - OpenAI API key for LLM access
 - OPENAI_MODEL: Optional - Model name (default: "gpt-4o-mini")
-- MOVEMENT_RPC_URL: Required - Movement Network RPC endpoint
-- ETHEREUM_RPC_URL: Optional - Ethereum RPC endpoint
-- BRIDGE_CONTRACT_ADDRESS: Required - Movement Bridge contract address
+- MOVEMENT_RPC_URL: Optional - Movement Network RPC endpoint
 
 USAGE:
 ------
 Mounted mode:
-    from app.agents.bridge.agent import create_bridge_agent_app
-    app.mount("/bridge", create_bridge_agent_app(base_url="http://localhost:8000/bridge"))
+    from app.agents.swap.agent import create_swap_agent_app
+    app.mount("/swap", create_swap_agent_app(card_url="http://localhost:8000/swap"))
 
 NOTES:
 ------
-- Uses Web3.py for blockchain interactions
-- Supports cross-chain bridging to/from Movement Network
-- Monitors bridge transaction status
-- Provides fee estimates before bridging
+- Works exclusively on Movement Network
+- Supports token swaps via DEX protocols
+- Provides quote estimates before executing swaps
+- Monitors swap transaction status
 """
 
 import os
@@ -116,7 +114,6 @@ EMPTY_RESPONSE_MESSAGE = (
 ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
 ENV_OPENAI_MODEL = "OPENAI_MODEL"
 ENV_MOVEMENT_RPC_URL = "MOVEMENT_RPC_URL"
-ENV_BRIDGE_CONTRACT_ADDRESS = "BRIDGE_CONTRACT_ADDRESS"
 
 # Message types
 MESSAGE_TYPE_AI = "ai"
@@ -138,168 +135,140 @@ ERROR_GENERIC_PREFIX = "I encountered an error while processing your request: "
 
 def get_system_prompt() -> str:
     """Get the system prompt for the agent."""
-    return """You are a helpful Web3 assistant specializing in cross-chain asset bridging using the Movement Bridge.
+    return """You are a helpful Web3 assistant specializing in token swaps on Movement Network.
 
-When users ask about bridging:
-1. Extract the source chain (ethereum, bnb, polygon, etc.)
-2. Extract the destination chain (usually Movement Network)
-3. Extract the asset type and amount (e.g., "1 ETH", "100 USDC")
-4. Extract the recipient address if provided (format: 0x...)
-5. Use the appropriate tool to handle the bridge operation
+CRITICAL: This application works EXCLUSIVELY with Movement Network. All operations default to Movement Network.
+
+When users ask about swapping tokens:
+1. Extract the token to swap from (e.g., "MOVE", "USDC", "USDT", "USDC.e", "USDT.e", "WBTC.e", "WETH.e")
+2. Extract the token to swap to (e.g., "USDC", "MOVE", "USDT", "USDC.e", "USDT.e", "WBTC.e", "WETH.e")
+3. Extract the amount to swap if provided (e.g., "1", "100", "0.5")
+4. Use the appropriate tool to get a quote or execute the swap
 
 Available operations:
-- Initiate a bridge transaction (requires: source chain, destination chain, asset, amount, recipient)
-- Check bridge transaction status (requires: transaction hash)
-- Get bridge fee estimates (requires: source chain, destination chain, asset, amount)
+- Get swap quote (requires: from_token, to_token, amount)
+- Execute swap transaction (requires: from_token, to_token, amount, slippage_tolerance)
+- Check swap transaction status (requires: transaction_hash)
+
+Common token symbols on Movement Network:
+- MOVE (native token)
+- USDC.e, USDT.e (verified stablecoins)
+- WBTC.e, WETH.e (verified wrapped tokens)
+- Other tokens from the Movement Network token registry
 
 If the user doesn't provide all required information, politely ask for it.
-Always validate that addresses start with 0x and are 42 characters long.
-Provide clear fee estimates before initiating any bridge transaction.
-Explain the expected bridge completion time (typically 10-30 minutes).
+Always provide quote estimates before executing swaps.
+Explain slippage tolerance and its impact on swap execution.
 If there's an error, explain it clearly and suggest alternatives."""
-
-
-def get_port() -> int:
-    """Get the port number from environment or default."""
-    return int(os.getenv("AGENTS_PORT", "8000"))
-
-
-def get_card_url(port: int) -> str:
-    """Get the card URL from environment or construct from port."""
-    return os.getenv("RENDER_EXTERNAL_URL", f"http://localhost:{port}")
 
 
 def create_agent_skill() -> AgentSkill:
     """Create the agent skill definition."""
     return AgentSkill(
-        id="bridge_agent",
-        name="Bridge Agent",
-        description="Bridge Agent for cross-chain asset transfers via Movement Bridge",
-        tags=["bridge", "cross-chain", "movement", "ethereum", "transfer"],
+        id="swap_agent",
+        name="Swap Agent",
+        description="Swap Agent for token exchanges on Movement Network",
+        tags=["swap", "exchange", "dex", "movement", "tokens", "web3"],
         examples=[
-            "bridge 1 ETH from Ethereum to Movement",
-            "bridge 100 USDC from BNB to Movement",
-            "check bridge status for transaction 0x...",
-            "what are the fees to bridge 1 ETH?",
-            "how long does bridging take?",
+            "swap 1 MOVE for USDC",
+            "swap MOVE to USDT",
+            "exchange USDC for MOVE",
+            "get quote for swapping 100 USDC to MOVE",
+            "swap tokens",
         ],
     )
 
 
-def create_agent_card(port: int) -> AgentCard:
-    """Create the public agent card."""
-    card_url = get_card_url(port)
-    skill = create_agent_skill()
-    return AgentCard(
-        name="bridge",
-        description=(
-            "LangGraph powered agent that helps bridge assets "
-            "between chains using Movement Bridge"
-        ),
-        url=card_url,
-        version="1.0.0",
-        default_input_modes=["text"],
-        default_output_modes=["text"],
-        capabilities=AgentCapabilities(streaming=True),
-        skills=[skill],
-        supports_authenticated_extended_card=False,
+@tool
+def get_swap_quote(from_token: str, to_token: str, amount: str) -> str:
+    """Get a quote for swapping tokens.
+
+    Args:
+        from_token: The token symbol to swap from (e.g., "MOVE", "USDC", "USDT", "USDC.e", "USDT.e")
+        to_token: The token symbol to swap to (e.g., "USDC", "MOVE", "USDT", "USDC.e", "USDT.e")
+        amount: The amount to swap (as string, e.g., "1", "100", "0.5")
+
+    Returns:
+        Swap quote details as a string
+    """
+    # TODO: Implement actual quote fetching from DEX API (e.g., Mosaic API)
+    return json.dumps(
+        {
+            "from_token": from_token.upper(),
+            "to_token": to_token.upper(),
+            "amount_in": amount,
+            "amount_out": "0.95",  # Example: 1 MOVE = 0.95 USDC
+            "price_impact": "2.5%",
+            "slippage_tolerance": "0.5%",
+            "estimated_gas": "0.001 MOVE",
+            "route": f"{from_token.upper()} -> {to_token.upper()}",
+            "message": f"Quote: {amount} {from_token.upper()} = ~{0.95 * float(amount)} {to_token.upper()} (estimated)",
+        }
     )
 
 
 @tool
-def initiate_bridge(
-    source_chain: str,
-    destination_chain: str,
-    asset: str,
+def execute_swap(
+    from_token: str,
+    to_token: str,
     amount: str,
-    recipient_address: str,
+    slippage_tolerance: str = "0.5",
 ) -> str:
-    """Initiate a cross-chain bridge transaction.
+    """Execute a token swap transaction.
 
     Args:
-        source_chain: The source blockchain (ethereum, bnb, polygon, etc.)
-        destination_chain: The destination blockchain (usually movement)
-        asset: The asset to bridge (ETH, USDC, USDT, etc.)
-        amount: The amount to bridge (as string)
-        recipient_address: The recipient address on destination chain (0x...)
+        from_token: The token symbol to swap from (e.g., "MOVE", "USDC", "USDT")
+        to_token: The token symbol to swap to (e.g., "USDC", "MOVE", "USDT")
+        amount: The amount to swap (as string, e.g., "1", "100", "0.5")
+        slippage_tolerance: Maximum acceptable slippage percentage (default: "0.5")
 
     Returns:
-        Transaction details as a string
+        Swap transaction details as a string
     """
-    # TODO: Implement actual bridge initiation with Movement Bridge contract
+    # TODO: Implement actual swap execution via DEX smart contracts
     return json.dumps(
         {
             "status": "initiated",
-            "source_chain": source_chain,
-            "destination_chain": destination_chain,
-            "asset": asset,
-            "amount": amount,
-            "recipient": recipient_address,
+            "from_token": from_token.upper(),
+            "to_token": to_token.upper(),
+            "amount_in": amount,
+            "amount_out": "0.95",  # Example
+            "slippage_tolerance": f"{slippage_tolerance}%",
             "tx_hash": "0x1234567890abcdef...",
-            "estimated_completion": "10-30 minutes",
-            "message": "Bridge transaction initiated successfully. Please wait for confirmation.",
+            "estimated_time": "30-60 seconds",
+            "message": f"Swap transaction initiated: {amount} {from_token.upper()} -> {to_token.upper()}",
         }
     )
 
 
 @tool
-def check_bridge_status(tx_hash: str) -> str:
-    """Check the status of a bridge transaction.
+def check_swap_status(tx_hash: str) -> str:
+    """Check the status of a swap transaction.
 
     Args:
-        tx_hash: The transaction hash of the bridge operation (0x...)
+        tx_hash: The transaction hash of the swap operation (0x...)
 
     Returns:
-        Bridge transaction status as a string
+        Swap transaction status as a string
     """
-    # TODO: Implement actual bridge status checking
+    # TODO: Implement actual transaction status checking
     return json.dumps(
         {
             "tx_hash": tx_hash,
-            "status": "pending",
-            "confirmations": "5/12",
-            "estimated_time_remaining": "15 minutes",
-            "message": "Bridge transaction is being processed.",
-        }
-    )
-
-
-@tool
-def get_bridge_fees(
-    source_chain: str,
-    destination_chain: str,
-    asset: str,
-    amount: str,
-) -> str:
-    """Get fee estimates for a bridge transaction.
-
-    Args:
-        source_chain: The source blockchain (ethereum, bnb, polygon, etc.)
-        destination_chain: The destination blockchain (usually movement)
-        asset: The asset to bridge (ETH, USDC, USDT, etc.)
-        amount: The amount to bridge (as string)
-
-    Returns:
-        Fee estimates as a string
-    """
-    # TODO: Implement actual fee calculation
-    return json.dumps(
-        {
-            "source_chain": source_chain,
-            "destination_chain": destination_chain,
-            "asset": asset,
-            "amount": amount,
-            "bridge_fee": "0.001 ETH",
-            "gas_estimate": "0.002 ETH",
-            "total_fee": "0.003 ETH",
-            "message": "Estimated fees for bridge transaction.",
+            "status": "completed",
+            "confirmations": "12/12",
+            "from_token": "MOVE",
+            "to_token": "USDC",
+            "amount_in": "1",
+            "amount_out": "0.95",
+            "message": "Swap transaction completed successfully",
         }
     )
 
 
 def get_tools() -> List[Any]:
     """Get the list of tools available to the agent."""
-    return [initiate_bridge, check_bridge_status, get_bridge_fees]
+    return [get_swap_quote, execute_swap, check_swap_status]
 
 
 def validate_openai_api_key() -> None:
@@ -392,11 +361,11 @@ def format_error_message(error: Exception) -> str:
     return f"{ERROR_GENERIC_PREFIX}{error}. Please try again."
 
 
-class BridgeAgent:
+class SwapAgent:
     def __init__(self):
         self._agent = self._build_agent()
         self._runner = Runner(
-            app_name="bridgeagent",
+            app_name="swapagent",
             agent=self._agent,
             artifact_service=InMemoryArtifactService(),
             session_service=InMemorySessionService(),
@@ -461,9 +430,9 @@ def create_message(content: str) -> Message:
     )
 
 
-class BridgeAgentExecutor(AgentExecutor):
+class SwapAgentExecutor(AgentExecutor):
     def __init__(self):
-        self.agent = BridgeAgent()
+        self.agent = SwapAgent()
 
     async def execute(
         self,
@@ -486,20 +455,20 @@ class BridgeAgentExecutor(AgentExecutor):
         raise NotImplementedError("cancel not supported")
 
 
-def create_bridge_agent_app(card_url: str) -> A2AStarletteApplication:
-    """Create and configure the A2A server application for the bridge agent.
+def create_swap_agent_app(card_url: str) -> A2AStarletteApplication:
+    """Create and configure the A2A server application for the swap agent.
 
     Args:
         card_url: The base URL where the agent card will be accessible
 
     Returns:
-        A2AStarletteApplication instance configured for the bridge agent
+        A2AStarletteApplication instance configured for the swap agent
     """
     agent_card = AgentCard(
-        name="bridge",
+        name="swap",
         description=(
-            "LangGraph powered agent that helps bridge assets "
-            "between chains using Movement Bridge"
+            "LangGraph powered agent that helps swap tokens "
+            "on Movement Network using decentralized exchanges"
         ),
         url=card_url,
         version="1.0.0",
@@ -510,7 +479,7 @@ def create_bridge_agent_app(card_url: str) -> A2AStarletteApplication:
         supports_authenticated_extended_card=False,
     )
     request_handler = DefaultRequestHandler(
-        agent_executor=BridgeAgentExecutor(),
+        agent_executor=SwapAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
     return A2AStarletteApplication(
