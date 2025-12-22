@@ -192,17 +192,19 @@ def get_swap_quote(from_token: str, to_token: str, amount: str) -> str:
         Swap quote details as a string
     """
     # TODO: Implement actual quote fetching from DEX API (e.g., Mosaic API)
-    return json.dumps({
-        "from_token": from_token.upper(),
-        "to_token": to_token.upper(),
-        "amount_in": amount,
-        "amount_out": "0.95",  # Example: 1 MOVE = 0.95 USDC
-        "price_impact": "2.5%",
-        "slippage_tolerance": "0.5%",
-        "estimated_gas": "0.001 MOVE",
-        "route": f"{from_token.upper()} -> {to_token.upper()}",
-        "message": f"Quote: {amount} {from_token.upper()} = ~{0.95 * float(amount)} {to_token.upper()} (estimated)"
-    })
+    return json.dumps(
+        {
+            "from_token": from_token.upper(),
+            "to_token": to_token.upper(),
+            "amount_in": amount,
+            "amount_out": "0.95",  # Example: 1 MOVE = 0.95 USDC
+            "price_impact": "2.5%",
+            "slippage_tolerance": "0.5%",
+            "estimated_gas": "0.001 MOVE",
+            "route": f"{from_token.upper()} -> {to_token.upper()}",
+            "message": f"Quote: {amount} {from_token.upper()} = ~{0.95 * float(amount)} {to_token.upper()} (estimated)",
+        }
+    )
 
 
 @tool
@@ -224,17 +226,19 @@ def execute_swap(
         Swap transaction details as a string
     """
     # TODO: Implement actual swap execution via DEX smart contracts
-    return json.dumps({
-        "status": "initiated",
-        "from_token": from_token.upper(),
-        "to_token": to_token.upper(),
-        "amount_in": amount,
-        "amount_out": "0.95",  # Example
-        "slippage_tolerance": f"{slippage_tolerance}%",
-        "tx_hash": "0x1234567890abcdef...",
-        "estimated_time": "30-60 seconds",
-        "message": f"Swap transaction initiated: {amount} {from_token.upper()} -> {to_token.upper()}"
-    })
+    return json.dumps(
+        {
+            "status": "initiated",
+            "from_token": from_token.upper(),
+            "to_token": to_token.upper(),
+            "amount_in": amount,
+            "amount_out": "0.95",  # Example
+            "slippage_tolerance": f"{slippage_tolerance}%",
+            "tx_hash": "0x1234567890abcdef...",
+            "estimated_time": "30-60 seconds",
+            "message": f"Swap transaction initiated: {amount} {from_token.upper()} -> {to_token.upper()}",
+        }
+    )
 
 
 @tool
@@ -248,16 +252,18 @@ def check_swap_status(tx_hash: str) -> str:
         Swap transaction status as a string
     """
     # TODO: Implement actual transaction status checking
-    return json.dumps({
-        "tx_hash": tx_hash,
-        "status": "completed",
-        "confirmations": "12/12",
-        "from_token": "MOVE",
-        "to_token": "USDC",
-        "amount_in": "1",
-        "amount_out": "0.95",
-        "message": "Swap transaction completed successfully"
-    })
+    return json.dumps(
+        {
+            "tx_hash": tx_hash,
+            "status": "completed",
+            "confirmations": "12/12",
+            "from_token": "MOVE",
+            "to_token": "USDC",
+            "amount_in": "1",
+            "amount_out": "0.95",
+            "message": "Swap transaction completed successfully",
+        }
+    )
 
 
 def get_tools() -> List[Any]:
@@ -395,7 +401,11 @@ class SwapAgent:
     async def _invoke_agent(self, query: str, session_id: str) -> Any:
         """Invoke the agent with the given query and session."""
         return await self._agent.ainvoke(
-            {MESSAGE_KEY_MESSAGES: [{MESSAGE_KEY_ROLE: MESSAGE_ROLE_USER, MESSAGE_KEY_CONTENT: query}]},
+            {
+                MESSAGE_KEY_MESSAGES: [
+                    {MESSAGE_KEY_ROLE: MESSAGE_ROLE_USER, MESSAGE_KEY_CONTENT: query}
+                ]
+            },
             config={"configurable": {"thread_id": session_id}},
         )
 
@@ -477,8 +487,3 @@ def create_swap_agent_app(card_url: str) -> A2AStarletteApplication:
         http_handler=request_handler,
         extended_agent_card=agent_card,
     )
-
-
-
-
-

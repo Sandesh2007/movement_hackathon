@@ -191,7 +191,7 @@ def create_agent_card(port: int) -> AgentCard:
     card_url = get_card_url(port)
     skill = create_agent_skill()
     return AgentCard(
-        name="Bridge Agent",
+        name="bridge",
         description=(
             "LangGraph powered agent that helps bridge assets "
             "between chains using Movement Bridge"
@@ -227,17 +227,19 @@ def initiate_bridge(
         Transaction details as a string
     """
     # TODO: Implement actual bridge initiation with Movement Bridge contract
-    return json.dumps({
-        "status": "initiated",
-        "source_chain": source_chain,
-        "destination_chain": destination_chain,
-        "asset": asset,
-        "amount": amount,
-        "recipient": recipient_address,
-        "tx_hash": "0x1234567890abcdef...",
-        "estimated_completion": "10-30 minutes",
-        "message": "Bridge transaction initiated successfully. Please wait for confirmation."
-    })
+    return json.dumps(
+        {
+            "status": "initiated",
+            "source_chain": source_chain,
+            "destination_chain": destination_chain,
+            "asset": asset,
+            "amount": amount,
+            "recipient": recipient_address,
+            "tx_hash": "0x1234567890abcdef...",
+            "estimated_completion": "10-30 minutes",
+            "message": "Bridge transaction initiated successfully. Please wait for confirmation.",
+        }
+    )
 
 
 @tool
@@ -251,13 +253,15 @@ def check_bridge_status(tx_hash: str) -> str:
         Bridge transaction status as a string
     """
     # TODO: Implement actual bridge status checking
-    return json.dumps({
-        "tx_hash": tx_hash,
-        "status": "pending",
-        "confirmations": "5/12",
-        "estimated_time_remaining": "15 minutes",
-        "message": "Bridge transaction is being processed."
-    })
+    return json.dumps(
+        {
+            "tx_hash": tx_hash,
+            "status": "pending",
+            "confirmations": "5/12",
+            "estimated_time_remaining": "15 minutes",
+            "message": "Bridge transaction is being processed.",
+        }
+    )
 
 
 @tool
@@ -279,16 +283,18 @@ def get_bridge_fees(
         Fee estimates as a string
     """
     # TODO: Implement actual fee calculation
-    return json.dumps({
-        "source_chain": source_chain,
-        "destination_chain": destination_chain,
-        "asset": asset,
-        "amount": amount,
-        "bridge_fee": "0.001 ETH",
-        "gas_estimate": "0.002 ETH",
-        "total_fee": "0.003 ETH",
-        "message": "Estimated fees for bridge transaction."
-    })
+    return json.dumps(
+        {
+            "source_chain": source_chain,
+            "destination_chain": destination_chain,
+            "asset": asset,
+            "amount": amount,
+            "bridge_fee": "0.001 ETH",
+            "gas_estimate": "0.002 ETH",
+            "total_fee": "0.003 ETH",
+            "message": "Estimated fees for bridge transaction.",
+        }
+    )
 
 
 def get_tools() -> List[Any]:
@@ -426,7 +432,11 @@ class BridgeAgent:
     async def _invoke_agent(self, query: str, session_id: str) -> Any:
         """Invoke the agent with the given query and session."""
         return await self._agent.ainvoke(
-            {MESSAGE_KEY_MESSAGES: [{MESSAGE_KEY_ROLE: MESSAGE_ROLE_USER, MESSAGE_KEY_CONTENT: query}]},
+            {
+                MESSAGE_KEY_MESSAGES: [
+                    {MESSAGE_KEY_ROLE: MESSAGE_ROLE_USER, MESSAGE_KEY_CONTENT: query}
+                ]
+            },
             config={"configurable": {"thread_id": session_id}},
         )
 
@@ -486,7 +496,7 @@ def create_bridge_agent_app(card_url: str) -> A2AStarletteApplication:
         A2AStarletteApplication instance configured for the bridge agent
     """
     agent_card = AgentCard(
-        name="Bridge Agent",
+        name="bridge",
         description=(
             "LangGraph powered agent that helps bridge assets "
             "between chains using Movement Bridge"

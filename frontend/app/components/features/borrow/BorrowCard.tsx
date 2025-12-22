@@ -2,6 +2,15 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
+import { useSignRawHash } from "@privy-io/react-auth/extended-chains";
+import {
+  executeBorrowV2,
+  executeRepayV2,
+} from "../../../utils/borrow-v2-utils";
+import {
+  getCoinDecimals,
+  convertAmountToRaw,
+} from "../../../utils/token-utils";
 
 interface BorrowCardProps {
   walletAddress: string | null;
@@ -20,7 +29,8 @@ interface TokenBalance {
 }
 
 export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
-  const { ready, authenticated } = usePrivy();
+  const { user, ready, authenticated } = usePrivy();
+  const { signRawHash } = useSignRawHash();
   const [activeTab, setActiveTab] = useState<"borrow" | "repay">("borrow");
   const [token, setToken] = useState<string>("MOVE");
   const [amount, setAmount] = useState<string>("");
@@ -30,6 +40,19 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
   const [balance, setBalance] = useState<string | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [submissionStep, setSubmissionStep] = useState<string>("");
+
+  const movementWallet = useMemo(() => {
+    if (!ready || !authenticated || !user?.linkedAccounts) {
+      return null;
+    }
+    return (
+      user.linkedAccounts.find(
+        (account): account is WalletWithMetadata =>
+          account.type === "wallet" && account.chainType === "aptos"
+      ) || null
+    );
+  }, [user, ready, authenticated]);
 
   // Mock data - replace with actual API calls
   const borrowed = 0;
@@ -112,8 +135,15 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
   };
 
   const handleBorrow = async () => {
-    if (!walletAddress) {
-      setBorrowError("Please connect your Movement wallet first.");
+    if (!ready || !authenticated) {
+      setBorrowError("Please connect your Privy wallet first");
+      return;
+    }
+
+    if (!movementWallet || !walletAddress) {
+      setBorrowError(
+        "Privy wallet not connected. Please connect your Movement wallet."
+      );
       return;
     }
 
@@ -122,7 +152,7 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
       return;
     }
 
-    if (parseFloat(amount) > maxBorrow) {
+    if (parseFloat(amount) > maxBorrow && maxBorrow > 0) {
       setBorrowError("Amount exceeds maximum borrow limit.");
       return;
     }
@@ -130,26 +160,76 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
     setBorrowing(true);
     setBorrowError(null);
     setTxHash(null);
+    setSubmissionStep("Initializing transaction with Privy...");
 
     try {
-      // TODO: Implement actual borrow transaction
-      // This is a placeholder
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setTxHash("0x1234567890abcdef");
+      const senderAddress = movementWallet.address as string;
+      const senderPubKeyWithScheme = (movementWallet as any)
+        .publicKey as string;
+
+      if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
+        throw new Error("Invalid public key format");
+      }
+
+      const publicKey = senderPubKeyWithScheme;
+
+      // Convert amount to smallest unit
+      const decimals = getCoinDecimals(token);
+      const rawAmount = convertAmountToRaw(amount, decimals);
+
+      // Execute transaction
+      const txHashResult = await executeBorrowV2({
+        amount: rawAmount,
+        coinSymbol: token,
+        walletAddress: senderAddress,
+        publicKey,
+        signHash: async (hash: string) => {
+          setSubmissionStep("Waiting for Privy wallet signature...");
+          try {
+            const response = await signRawHash({
+              address: senderAddress,
+              chainType: "aptos",
+              hash: hash as `0x${string}`,
+            });
+            setSubmissionStep("Signature received from Privy");
+            return { signature: response.signature };
+          } catch (error: any) {
+            setSubmissionStep("");
+            throw new Error(
+              error.message || "Failed to get signature from Privy wallet"
+            );
+          }
+        },
+        onProgress: (step: string) => {
+          setSubmissionStep(step);
+        },
+      });
+
+      console.log("Borrow transaction successful:", txHashResult);
+      setTxHash(txHashResult);
+      setSubmissionStep("");
     } catch (err: any) {
       console.error("Borrow error:", err);
       setBorrowError(
         err.message ||
           "Borrow failed. Please check your connection and try again."
       );
+      setSubmissionStep("");
     } finally {
       setBorrowing(false);
     }
   };
 
   const handleRepay = async () => {
-    if (!walletAddress) {
-      setBorrowError("Please connect your Movement wallet first.");
+    if (!ready || !authenticated) {
+      setBorrowError("Please connect your Privy wallet first");
+      return;
+    }
+
+    if (!movementWallet || !walletAddress) {
+      setBorrowError(
+        "Privy wallet not connected. Please connect your Movement wallet."
+      );
       return;
     }
 
@@ -163,7 +243,7 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
       return;
     }
 
-    if (parseFloat(amount) > borrowed) {
+    if (parseFloat(amount) > borrowed && borrowed > 0) {
       setBorrowError("Amount exceeds borrowed amount.");
       return;
     }
@@ -171,18 +251,61 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
     setBorrowing(true);
     setBorrowError(null);
     setTxHash(null);
+    setSubmissionStep("Initializing transaction with Privy...");
 
     try {
-      // TODO: Implement actual repay transaction
-      // This is a placeholder
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setTxHash("0x1234567890abcdef");
+      const senderAddress = movementWallet.address as string;
+      const senderPubKeyWithScheme = (movementWallet as any)
+        .publicKey as string;
+
+      if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
+        throw new Error("Invalid public key format");
+      }
+
+      const publicKey = senderPubKeyWithScheme;
+
+      // Convert amount to smallest unit
+      const decimals = getCoinDecimals(token);
+      const rawAmount = convertAmountToRaw(amount, decimals);
+
+      // Execute transaction
+      const txHashResult = await executeRepayV2({
+        amount: rawAmount,
+        coinSymbol: token,
+        walletAddress: senderAddress,
+        publicKey,
+        signHash: async (hash: string) => {
+          setSubmissionStep("Waiting for Privy wallet signature...");
+          try {
+            const response = await signRawHash({
+              address: senderAddress,
+              chainType: "aptos",
+              hash: hash as `0x${string}`,
+            });
+            setSubmissionStep("Signature received from Privy");
+            return { signature: response.signature };
+          } catch (error: any) {
+            setSubmissionStep("");
+            throw new Error(
+              error.message || "Failed to get signature from Privy wallet"
+            );
+          }
+        },
+        onProgress: (step: string) => {
+          setSubmissionStep(step);
+        },
+      });
+
+      console.log("Repay transaction successful:", txHashResult);
+      setTxHash(txHashResult);
+      setSubmissionStep("");
     } catch (err: any) {
       console.error("Repay error:", err);
       setBorrowError(
         err.message ||
           "Repay failed. Please check your connection and try again."
       );
+      setSubmissionStep("");
     } finally {
       setBorrowing(false);
     }
@@ -395,6 +518,13 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
           {showMore ? "Less" : "More"}
         </button>
 
+        {/* Submission Step */}
+        {submissionStep && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-400">
+            {submissionStep}
+          </div>
+        )}
+
         {/* Error Message */}
         {borrowError && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
@@ -454,8 +584,3 @@ export const BorrowCard: React.FC<BorrowCardProps> = ({ walletAddress }) => {
     </div>
   );
 };
-
-
-
-
-

@@ -9,7 +9,7 @@ import { EchelonSupplyModal } from "../../echelon-supply-modal";
 interface PlatformSelectionCardProps {
   action: "borrow" | "lend";
   asset: string;
-  recommendedProtocol: string;
+  recommendedProtocol?: string;
   echelonRate: string;
   movepositionRate: string;
   reason: string;
@@ -28,35 +28,19 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
   onClose,
 }) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [showEchelonBorrowModal, setShowEchelonBorrowModal] = useState(false);
-  const [showEchelonSupplyModal, setShowEchelonSupplyModal] = useState(false);
 
   const handlePlatformSelect = (platform: "echelon" | "moveposition") => {
     setSelectedPlatform(platform);
-
-    if (action === "borrow") {
-      if (platform === "echelon") {
-        setShowEchelonBorrowModal(true);
-      }
-      // For MovePosition, we'll show the BorrowCard inline
-    } else {
-      // action === "lend"
-      if (platform === "echelon") {
-        setShowEchelonSupplyModal(true);
-      }
-      // For MovePosition, we'll show the LendCard inline
-    }
   };
 
   const handleCloseModals = () => {
-    setShowEchelonBorrowModal(false);
-    setShowEchelonSupplyModal(false);
+    setSelectedPlatform(null);
     if (onClose) {
       onClose();
     }
   };
 
-  // If platform is selected and it's MovePosition, show the card inline
+  // If platform is selected, show the appropriate card inline
   if (selectedPlatform === "moveposition") {
     if (action === "borrow") {
       return (
@@ -73,42 +57,44 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
     }
   }
 
-  // Show Echelon modals if selected
-  if (showEchelonBorrowModal) {
-    return (
-      <>
-        <EchelonBorrowModal
-          isOpen={showEchelonBorrowModal}
-          onClose={handleCloseModals}
-          asset={{
-            symbol: asset,
-            name: asset,
-            icon: "",
-            price: 1, // Default price, will be fetched if needed
-            borrowApr: parseFloat(echelonRate.replace("%", "")), // Already in percentage format
-            borrowCap: 0,
-          }}
-        />
-      </>
-    );
-  }
-
-  if (showEchelonSupplyModal) {
-    return (
-      <>
-        <EchelonSupplyModal
-          isOpen={showEchelonSupplyModal}
-          onClose={handleCloseModals}
-          asset={{
-            symbol: asset,
-            name: asset,
-            icon: "",
-            price: 1, // Default price, will be fetched if needed
-            supplyApr: parseFloat(echelonRate.replace("%", "")), // Already in percentage format
-          }}
-        />
-      </>
-    );
+  // Show Echelon cards inline (same as MovePosition)
+  if (selectedPlatform === "echelon") {
+    if (action === "borrow") {
+      return (
+        <div className="my-3">
+          <EchelonBorrowModal
+            isOpen={true}
+            onClose={handleCloseModals}
+            inline={true}
+            asset={{
+              symbol: asset,
+              name: asset,
+              icon: "",
+              price: 1, // Default price, will be fetched if needed
+              borrowApr: parseFloat(echelonRate.replace("%", "")), // Already in percentage format
+              borrowCap: 0,
+            }}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="my-3">
+          <EchelonSupplyModal
+            isOpen={true}
+            onClose={handleCloseModals}
+            inline={true}
+            asset={{
+              symbol: asset,
+              name: asset,
+              icon: "",
+              price: 1, // Default price, will be fetched if needed
+              supplyApr: parseFloat(echelonRate.replace("%", "")), // Already in percentage format
+            }}
+          />
+        </div>
+      );
+    }
   }
 
   // Show platform selection UI
@@ -120,9 +106,7 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
             Choose a Platform to {action === "borrow" ? "Borrow" : "Lend"}{" "}
             {asset}
           </h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {reason}
-          </p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{reason}</p>
         </div>
 
         <div className="space-y-3 mb-4">
@@ -130,7 +114,7 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
           <button
             onClick={() => handlePlatformSelect("echelon")}
             className={`w-full p-4 rounded-xl border-2 transition-all ${
-              recommendedProtocol.toLowerCase() === "echelon"
+              recommendedProtocol?.toLowerCase() === "echelon"
                 ? "border-purple-500 bg-purple-50 dark:bg-purple-950/20"
                 : "border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-700"
             }`}
@@ -152,7 +136,7 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
                   </div>
                 </div>
               </div>
-              {recommendedProtocol.toLowerCase() === "echelon" && (
+              {recommendedProtocol?.toLowerCase() === "echelon" && (
                 <div className="px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium">
                   Recommended
                 </div>
@@ -164,7 +148,7 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
           <button
             onClick={() => handlePlatformSelect("moveposition")}
             className={`w-full p-4 rounded-xl border-2 transition-all ${
-              recommendedProtocol.toLowerCase() === "moveposition"
+              recommendedProtocol?.toLowerCase() === "moveposition"
                 ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
                 : "border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700"
             }`}
@@ -186,7 +170,7 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
                   </div>
                 </div>
               </div>
-              {recommendedProtocol.toLowerCase() === "moveposition" && (
+              {recommendedProtocol?.toLowerCase() === "moveposition" && (
                 <div className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium">
                   Recommended
                 </div>
@@ -198,4 +182,3 @@ export const PlatformSelectionCard: React.FC<PlatformSelectionCardProps> = ({
     </div>
   );
 };
-

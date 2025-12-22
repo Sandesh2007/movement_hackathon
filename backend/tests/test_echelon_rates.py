@@ -32,14 +32,11 @@ ECHELON_ASSETS = [
         "isFaMarket": False,
         "supplyApr": 0.37239241739735,
         "borrowApr": 0.619999999878928,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 25000000,
         "borrowCap": 10000000,
         "ltv": 0.7,
-        "lt": 0.74
+        "lt": 0.74,
     },
     {
         "faAddress": "0x83121c9f9b0527d1f056e21a950d6bf3b9e9e2e8353d0e95ccea726713cbea39",
@@ -53,16 +50,13 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0.0522766585927457,
         "borrowApr": 0.100262499880046,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 100000000,
         "borrowCap": 50000000,
         "ltv": 0.8,
         "lt": 0.82,
         "emodeLtv": 0.93,
-        "emodeLt": 0.95
+        "emodeLt": 0.95,
     },
     {
         "faAddress": "0x447721a30109c662dde9c73a0c2c9c9c459fb5e5a9c92f03c50fa69737f5d08d",
@@ -76,16 +70,13 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0.047939202748239,
         "borrowApr": 0.0960124998819083,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 100000000,
         "borrowCap": 50000000,
         "ltv": 0.8,
         "lt": 0.82,
         "emodeLtv": 0.93,
-        "emodeLt": 0.95
+        "emodeLt": 0.95,
     },
     {
         "faAddress": "0xb06f29f24dde9c6daeec1f930f14a441a8d6c0fbea590725e88b340af3e1939c",
@@ -99,14 +90,11 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0.000430642860010266,
         "borrowApr": 0.00575499981641769,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 50,
         "borrowCap": 10,
         "ltv": 0.76,
-        "lt": 0.8
+        "lt": 0.8,
     },
     {
         "faAddress": "0x908828f4fb0213d4034c3ded1630bbd904e8a3a6bf3c63270887f0b06653a376",
@@ -120,14 +108,11 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0,
         "borrowApr": 0,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 1000,
         "borrowCap": 0,
         "ltv": 0.7,
-        "lt": 0.72
+        "lt": 0.72,
     },
     {
         "faAddress": "0x658f4ef6f76c8eeffdc06a30946f3f06723a7f9532e2413312b2a612183759c",
@@ -141,14 +126,11 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0,
         "borrowApr": 0,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 50,
         "borrowCap": 0,
         "ltv": 0.7,
-        "lt": 0.74
+        "lt": 0.74,
     },
     {
         "faAddress": "0x527c43638a6c389a9ad702e7085f31c48223624d5102a5207dfab861f482c46d",
@@ -162,14 +144,11 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0,
         "borrowApr": 0,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 50,
         "borrowCap": 0,
         "ltv": 0.7,
-        "lt": 0.74
+        "lt": 0.74,
     },
     {
         "faAddress": "0x2f6af255328fe11b88d840d1e367e946ccd16bd7ebddd6ee7e2ef9f7ae0c53ef",
@@ -183,14 +162,11 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0.0000069469679147,
         "borrowApr": 0.000688888831064105,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 1000,
         "borrowCap": 500,
         "ltv": 0.7,
-        "lt": 0.72
+        "lt": 0.72,
     },
     {
         "faAddress": "0x74f0c7504507f7357f8a218cc70ce3fc0f4b4e9eb8474e53ca778cb1e0c6dcc5",
@@ -204,17 +180,14 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0,
         "borrowApr": 0,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 7500000000,
         "borrowCap": 0,
         "ltv": 0.8,
         "lt": 0.82,
         "emodeLtv": 0.93,
         "emodeLt": 0.95,
-        "stakingApr": 0.0427571428571429
+        "stakingApr": 0.0427571428571429,
     },
     {
         "faAddress": "0x51ffc9885233adf3dd411078cad57535ed1982013dc82d9d6c433a55f2e0035d",
@@ -228,15 +201,12 @@ ECHELON_ASSETS = [
         "isFaMarket": True,
         "supplyApr": 0,
         "borrowApr": 0,
-        "farmingApr": {
-            "supply": [],
-            "borrow": []
-        },
+        "farmingApr": {"supply": [], "borrow": []},
         "supplyCap": 3000,
         "borrowCap": 0,
         "ltv": 0.7,
-        "lt": 0.72
-    }
+        "lt": 0.72,
+    },
 ]
 
 
@@ -272,7 +242,18 @@ class TestCalculateEchelonSupplyAPR:
 
     def test_calculate_echelon_supply_apr_all_assets(self) -> None:
         """Test supply APR calculation for all assets in the dataset."""
-        asset_names = ["MOVE", "USDC", "USDT", "WBTC", "WETH", "LBTC", "SolvBTC", "ezETH", "sUSDe", "rsETH"]
+        asset_names = [
+            "MOVE",
+            "USDC",
+            "USDT",
+            "WBTC",
+            "WETH",
+            "LBTC",
+            "SolvBTC",
+            "ezETH",
+            "sUSDe",
+            "rsETH",
+        ]
         print("\n=== Echelon Supply APR for All Assets ===")
         for idx, asset in enumerate(ECHELON_ASSETS):
             supply_apr = calculate_echelon_supply_apr(asset)
@@ -326,7 +307,18 @@ class TestCalculateEchelonBorrowAPR:
 
     def test_calculate_echelon_borrow_apr_all_assets(self) -> None:
         """Test borrow APR calculation for all assets in the dataset."""
-        asset_names = ["MOVE", "USDC", "USDT", "WBTC", "WETH", "LBTC", "SolvBTC", "ezETH", "sUSDe", "rsETH"]
+        asset_names = [
+            "MOVE",
+            "USDC",
+            "USDT",
+            "WBTC",
+            "WETH",
+            "LBTC",
+            "SolvBTC",
+            "ezETH",
+            "sUSDe",
+            "rsETH",
+        ]
         print("\n=== Echelon Borrow APR for All Assets ===")
         for idx, asset in enumerate(ECHELON_ASSETS):
             borrow_apr = calculate_echelon_borrow_apr(asset)
@@ -358,4 +350,3 @@ class TestCalculateEchelonBorrowAPR:
         assert supply_apr >= 0
         assert borrow_apr >= 0
         assert borrow_apr > supply_apr  # Borrow rate should be higher than supply rate
-

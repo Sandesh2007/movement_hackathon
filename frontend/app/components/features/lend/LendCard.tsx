@@ -2,6 +2,15 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { usePrivy, WalletWithMetadata } from "@privy-io/react-auth";
+import { useSignRawHash } from "@privy-io/react-auth/extended-chains";
+import { executeLendV2, executeRedeemV2 } from "../../../utils/lend-v2-utils";
+import {
+  getCoinDecimals,
+  convertAmountToRaw,
+} from "../../../utils/token-utils";
+import { getBrokerName } from "../../../utils/lending-transaction";
+import { getMovementApiBase } from "@/lib/super-aptos-sdk/src/globals";
+import * as superJsonApiClient from "../../../../lib/super-json-api-client/src";
 
 interface LendCardProps {
   walletAddress: string | null;
@@ -20,7 +29,8 @@ interface TokenBalance {
 }
 
 export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
-  const { ready, authenticated } = usePrivy();
+  const { user, ready, authenticated } = usePrivy();
+  const { signRawHash } = useSignRawHash();
   const [activeTab, setActiveTab] = useState<"supply" | "withdraw">("supply");
   const [token, setToken] = useState<string>("MOVE");
   const [amount, setAmount] = useState<string>("");
@@ -30,12 +40,89 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
   const [balance, setBalance] = useState<string | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [submissionStep, setSubmissionStep] = useState<string>("");
+  const [portfolioData, setPortfolioData] = useState<any | null>(null);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
+  const [brokerData, setBrokerData] = useState<any[]>([]);
 
-  // Mock data - replace with actual API calls
-  const supplied = 0;
-  const supplyAPY = 156.0;
-  const healthFactor = "N/A";
+  const movementApiBase = getMovementApiBase();
+
+  const movementWallet = useMemo(() => {
+    if (!ready || !authenticated || !user?.linkedAccounts) {
+      return null;
+    }
+    return (
+      user.linkedAccounts.find(
+        (account): account is WalletWithMetadata =>
+          account.type === "wallet" && account.chainType === "aptos"
+      ) || null
+    );
+  }, [user, ready, authenticated]);
+
   const walletBalance = balance ? parseFloat(balance) : 0;
+
+  // Get user's current supplied amount from portfolio data
+  // Formula matches SupplyModal: scaledAmount × depositNoteExchangeRate
+  const supplied = useMemo(() => {
+    if (!portfolioData || !token) {
+      return 0;
+    }
+
+    const brokerName = getBrokerName(token);
+    const depositNoteName = `${brokerName}-super-aptos-deposit-note`;
+
+    // Check if collaterals array exists
+    if (
+      !portfolioData.collaterals ||
+      !Array.isArray(portfolioData.collaterals)
+    ) {
+      return 0;
+    }
+
+    const collateral = portfolioData.collaterals.find(
+      (c: any) => c.instrument?.name === depositNoteName
+    );
+
+    if (!collateral) {
+      return 0;
+    }
+
+    // Get deposit note exchange rate from broker data
+    const broker =
+      brokerData.find((b: any) => b.depositNote?.name === depositNoteName) ||
+      brokerData.find((b: any) => b.underlyingAsset?.name === brokerName);
+
+    const exchangeRate =
+      broker?.depositNoteExchangeRate || broker?.depositNote?.exchangeRate || 1;
+
+    // scaledAmount from API is already in human-readable format (not smallest units)
+    // scaledAmount × exchangeRate = actual underlying amount (human-readable)
+    // This matches SupplyModal's calculation exactly
+    const scaledAmount = parseFloat(collateral.scaledAmount || "0");
+    return scaledAmount * exchangeRate;
+  }, [portfolioData, token, brokerData]);
+
+  // Get current health factor from portfolio data
+  const healthFactor = useMemo(() => {
+    if (portfolioData?.evaluation?.health_ratio) {
+      return portfolioData.evaluation.health_ratio;
+    }
+    return null;
+  }, [portfolioData]);
+
+  // Get supply APY from broker data
+  const supplyAPY = useMemo(() => {
+    if (!brokerData.length || !token) return 0;
+    const brokerName = getBrokerName(token);
+    const broker = brokerData.find(
+      (b: any) => b.underlyingAsset.name === brokerName
+    );
+    if (!broker) return 0;
+    // Convert APR to APY (approximate: APY = APR * (1 + utilization))
+    const apr = broker.supplyApr || 0;
+    const utilization = broker.utilization || 0;
+    return apr * (1 + utilization / 100);
+  }, [brokerData, token]);
 
   // Fetch balance for token
   useEffect(() => {
@@ -92,6 +179,38 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
     fetchBalance();
   }, [walletAddress, token]);
 
+  // Fetch portfolio and broker data
+  useEffect(() => {
+    if (!walletAddress) {
+      setPortfolioData(null);
+      setBrokerData([]);
+      return;
+    }
+
+    const fetchPortfolioAndBrokers = async () => {
+      setLoadingPortfolio(true);
+      try {
+        const superClient = new superJsonApiClient.SuperClient({
+          BASE: movementApiBase,
+        });
+        const [portfolioRes, brokersRes] = await Promise.all([
+          superClient.default.getPortfolio(walletAddress),
+          superClient.default.getBrokers(),
+        ]);
+        setPortfolioData(portfolioRes as unknown as any);
+        setBrokerData(brokersRes as unknown as any[]);
+      } catch (error) {
+        console.error("Error fetching portfolio/brokers:", error);
+        setPortfolioData(null);
+        setBrokerData([]);
+      } finally {
+        setLoadingPortfolio(false);
+      }
+    };
+
+    fetchPortfolioAndBrokers();
+  }, [walletAddress, movementApiBase]);
+
   const handleAmountChange = (value: string) => {
     const numericValue = value.replace(/[^0-9.]/g, "");
     const parts = numericValue.split(".");
@@ -109,8 +228,15 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
   };
 
   const handleSupply = async () => {
-    if (!walletAddress) {
-      setLendError("Please connect your Movement wallet first.");
+    if (!ready || !authenticated) {
+      setLendError("Please connect your Privy wallet first");
+      return;
+    }
+
+    if (!movementWallet || !walletAddress) {
+      setLendError(
+        "Privy wallet not connected. Please connect your Movement wallet."
+      );
       return;
     }
 
@@ -127,26 +253,93 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
     setLending(true);
     setLendError(null);
     setTxHash(null);
+    setSubmissionStep("Initializing transaction with Privy...");
 
     try {
-      // TODO: Implement actual supply transaction
-      // This is a placeholder
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setTxHash("0x1234567890abcdef");
+      const senderAddress = movementWallet.address as string;
+      const senderPubKeyWithScheme = (movementWallet as any)
+        .publicKey as string;
+
+      if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
+        throw new Error("Invalid public key format");
+      }
+
+      const publicKey = senderPubKeyWithScheme;
+
+      // Convert amount to smallest unit
+      const decimals = getCoinDecimals(token);
+      const rawAmount = convertAmountToRaw(amount, decimals);
+
+      // Execute transaction
+      const txHashResult = await executeLendV2({
+        amount: rawAmount,
+        coinSymbol: token,
+        walletAddress: senderAddress,
+        publicKey,
+        signHash: async (hash: string) => {
+          setSubmissionStep("Waiting for Privy wallet signature...");
+          try {
+            const response = await signRawHash({
+              address: senderAddress,
+              chainType: "aptos",
+              hash: hash as `0x${string}`,
+            });
+            setSubmissionStep("Signature received from Privy");
+            return { signature: response.signature };
+          } catch (error: any) {
+            setSubmissionStep("");
+            throw new Error(
+              error.message || "Failed to get signature from Privy wallet"
+            );
+          }
+        },
+        onProgress: (step: string) => {
+          setSubmissionStep(step);
+        },
+      });
+
+      console.log("Supply transaction successful:", txHashResult);
+      setTxHash(txHashResult);
+      setSubmissionStep("");
+
+      // Refresh portfolio data to update supplied amounts
+      if (walletAddress) {
+        try {
+          const superClient = new superJsonApiClient.SuperClient({
+            BASE: movementApiBase,
+          });
+          const [portfolioRes, brokersRes] = await Promise.all([
+            superClient.default.getPortfolio(walletAddress),
+            superClient.default.getBrokers(),
+          ]);
+          setPortfolioData(portfolioRes as unknown as any);
+          setBrokerData(brokersRes as unknown as any[]);
+        } catch (error) {
+          console.error("Error refreshing portfolio:", error);
+        }
+      }
     } catch (err: any) {
       console.error("Supply error:", err);
       setLendError(
         err.message ||
           "Supply failed. Please check your connection and try again."
       );
+      setSubmissionStep("");
     } finally {
       setLending(false);
     }
   };
 
   const handleWithdraw = async () => {
-    if (!walletAddress) {
-      setLendError("Please connect your Movement wallet first.");
+    if (!ready || !authenticated) {
+      setLendError("Please connect your Privy wallet first");
+      return;
+    }
+
+    if (!movementWallet || !walletAddress) {
+      setLendError(
+        "Privy wallet not connected. Please connect your Movement wallet."
+      );
       return;
     }
 
@@ -163,18 +356,78 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
     setLending(true);
     setLendError(null);
     setTxHash(null);
+    setSubmissionStep("Initializing transaction with Privy...");
 
     try {
-      // TODO: Implement actual withdraw transaction
-      // This is a placeholder
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setTxHash("0x1234567890abcdef");
+      const senderAddress = movementWallet.address as string;
+      const senderPubKeyWithScheme = (movementWallet as any)
+        .publicKey as string;
+
+      if (!senderPubKeyWithScheme || senderPubKeyWithScheme.length < 2) {
+        throw new Error("Invalid public key format");
+      }
+
+      const publicKey = senderPubKeyWithScheme;
+
+      // Convert amount to smallest unit
+      const decimals = getCoinDecimals(token);
+      const rawAmount = convertAmountToRaw(amount, decimals);
+
+      // Execute transaction
+      const txHashResult = await executeRedeemV2({
+        amount: rawAmount,
+        coinSymbol: token,
+        walletAddress: senderAddress,
+        publicKey,
+        signHash: async (hash: string) => {
+          setSubmissionStep("Waiting for Privy wallet signature...");
+          try {
+            const response = await signRawHash({
+              address: senderAddress,
+              chainType: "aptos",
+              hash: hash as `0x${string}`,
+            });
+            setSubmissionStep("Signature received from Privy");
+            return { signature: response.signature };
+          } catch (error: any) {
+            setSubmissionStep("");
+            throw new Error(
+              error.message || "Failed to get signature from Privy wallet"
+            );
+          }
+        },
+        onProgress: (step: string) => {
+          setSubmissionStep(step);
+        },
+      });
+
+      console.log("Withdraw transaction successful:", txHashResult);
+      setTxHash(txHashResult);
+      setSubmissionStep("");
+
+      // Refresh portfolio data to update supplied amounts
+      if (walletAddress) {
+        try {
+          const superClient = new superJsonApiClient.SuperClient({
+            BASE: movementApiBase,
+          });
+          const [portfolioRes, brokersRes] = await Promise.all([
+            superClient.default.getPortfolio(walletAddress),
+            superClient.default.getBrokers(),
+          ]);
+          setPortfolioData(portfolioRes as unknown as any);
+          setBrokerData(brokersRes as unknown as any[]);
+        } catch (error) {
+          console.error("Error refreshing portfolio:", error);
+        }
+      }
     } catch (err: any) {
       console.error("Withdraw error:", err);
       setLendError(
         err.message ||
           "Withdraw failed. Please check your connection and try again."
       );
+      setSubmissionStep("");
     } finally {
       setLending(false);
     }
@@ -306,10 +559,10 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
           <div className="mt-1 flex items-center justify-between">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               {activeTab === "supply" ? "Wallet balance" : "Supplied"}:{" "}
-              {loadingBalance ? (
-                <span className="inline-block animate-pulse">Loading...</span>
-              ) : activeTab === "supply" ? (
-                balance !== null ? (
+              {activeTab === "supply" ? (
+                loadingBalance ? (
+                  <span className="inline-block animate-pulse">Loading...</span>
+                ) : balance !== null ? (
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">
                     {parseFloat(balance).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -320,9 +573,15 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
                 ) : (
                   <span>-- {token}</span>
                 )
+              ) : loadingPortfolio ? (
+                <span className="inline-block animate-pulse">Loading...</span>
               ) : (
                 <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                  {supplied} {token}
+                  {supplied.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 6,
+                  })}{" "}
+                  {token}
                 </span>
               )}
             </p>
@@ -340,8 +599,24 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
             <span className="text-sm text-zinc-600 dark:text-zinc-400">
               Health factor
             </span>
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              {healthFactor}
+            <span
+              className={`text-sm font-medium ${
+                healthFactor
+                  ? healthFactor >= 1.2
+                    ? "text-green-600 dark:text-green-400"
+                    : healthFactor >= 1.0
+                      ? "text-yellow-600 dark:text-yellow-400"
+                      : "text-red-600 dark:text-red-400"
+                  : "text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              {loadingPortfolio ? (
+                <span className="inline-block animate-pulse">Loading...</span>
+              ) : healthFactor ? (
+                `${healthFactor.toFixed(2)}x`
+              ) : (
+                "N/A"
+              )}
             </span>
           </div>
           {activeTab === "supply" && (
@@ -351,7 +626,18 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
                   Supplied
                 </span>
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  {supplied} {token}
+                  {loadingPortfolio ? (
+                    <span className="inline-block animate-pulse">
+                      Loading...
+                    </span>
+                  ) : supplied > 0 ? (
+                    `${supplied.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 6,
+                    })} ${token}`
+                  ) : (
+                    `0.00 ${token}`
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -359,10 +645,33 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
                   Supply APY
                 </span>
                 <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                  {supplyAPY}%
+                  {loadingPortfolio ? (
+                    <span className="inline-block animate-pulse">
+                      Loading...
+                    </span>
+                  ) : (
+                    `${supplyAPY.toFixed(2)}%`
+                  )}
                 </span>
               </div>
             </>
+          )}
+          {activeTab === "withdraw" && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                Available to withdraw
+              </span>
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {loadingPortfolio ? (
+                  <span className="inline-block animate-pulse">Loading...</span>
+                ) : (
+                  `${supplied.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 6,
+                  })} ${token}`
+                )}
+              </span>
+            </div>
           )}
         </div>
 
@@ -373,6 +682,13 @@ export const LendCard: React.FC<LendCardProps> = ({ walletAddress }) => {
         >
           {showMore ? "Less" : "More"}
         </button>
+
+        {/* Submission Step */}
+        {submissionStep && (
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-400">
+            {submissionStep}
+          </div>
+        )}
 
         {/* Error Message */}
         {lendError && (

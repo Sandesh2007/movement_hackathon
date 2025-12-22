@@ -265,7 +265,7 @@ def create_agent_card(port: int) -> AgentCard:
 
 def get_movement_indexer_url() -> str:
     """Get Movement Indexer URL from environment or default to Sentio.
-    
+
     Returns:
         Movement Indexer GraphQL URL
     """
@@ -274,13 +274,13 @@ def get_movement_indexer_url() -> str:
 
 def fetch_movement_balances(address: str) -> Dict[str, Any]:
     """Fetch balances from Movement Network using the indexer API with pagination.
-    
+
     Uses the robust balance fetching function from get_movement_balance.py
     which includes pagination, proper error handling, and native token sorting.
-    
+
     Args:
         address: Wallet address to check
-        
+
     Returns:
         Dictionary with balance information
     """
@@ -289,26 +289,26 @@ def fetch_movement_balances(address: str) -> Dict[str, Any]:
         import sys
         import os
         from pathlib import Path
-        
+
         # Add backend directory to path to import get_movement_balance
         # From: backend/app/agents/balance/agent.py
         # To: backend/get_movement_balance.py
         current_file = Path(__file__).resolve()
         backend_dir = current_file.parent.parent.parent.parent
         backend_dir_str = str(backend_dir)
-        
+
         if backend_dir_str not in sys.path:
             sys.path.insert(0, backend_dir_str)
-        
+
         # Import the functions
         from get_movement_balance import get_balances, get_indexer_url
-        
+
         # Get indexer URL (uses default provider: sentio)
         indexer_url = get_indexer_url()
-        
+
         # Fetch balances with pagination support
         result = get_balances(indexer_url=indexer_url, address=address)
-        
+
         # Return in the format expected by the agent
         if result.get("success", False):
             return {
@@ -369,11 +369,11 @@ def fetch_movement_balances(address: str) -> Dict[str, Any]:
 
 def format_movement_balance_response(balances_data: Dict[str, Any], address: str) -> str:
     """Format Movement balance data into a user-friendly string.
-    
+
     Args:
         balances_data: Dictionary with balance data from indexer
         address: Wallet address
-        
+
     Returns:
         Formatted balance string
     """
@@ -382,15 +382,15 @@ def format_movement_balance_response(balances_data: Dict[str, Any], address: str
     balances = balances_data.get("balances", [])
     if not balances:
         return f"Address {address} has no token balances on Movement Network."
-    
+
     # Process each token individually (don't group - show all 6 tokens separately)
     token_list: List[Dict[str, Any]] = []
-    
+
     for balance in balances:
         amount = balance.get("amount", "0")
         metadata = balance.get("metadata", {})
         asset_type = balance.get("asset_type", "Unknown")
-        
+
         # Handle metadata structure (can be dict or nested)
         if isinstance(metadata, dict):
             name = metadata.get("name", "Unknown Token")
@@ -400,35 +400,37 @@ def format_movement_balance_response(balances_data: Dict[str, Any], address: str
             name = "Unknown Token"
             symbol = "Unknown"
             decimals_str = "18"
-        
+
         try:
             decimals = int(decimals_str)
         except (ValueError, TypeError):
             decimals = 18
-        
+
         try:
             amount_int = int(amount)
-            
+
             # Skip only truly zero balances - show all tokens with any balance (even very small)
             if amount_int == 0:
                 continue
-            
-            formatted_balance = amount_int / (10 ** decimals)
-            
+
+            formatted_balance = amount_int / (10**decimals)
+
             # Store each token individually (don't group by symbol)
-            token_list.append({
-                "name": name,
-                "symbol": symbol.upper(),
-                "balance": formatted_balance,
-                "asset_type": asset_type
-            })
+            token_list.append(
+                {
+                    "name": name,
+                    "symbol": symbol.upper(),
+                    "balance": formatted_balance,
+                    "asset_type": asset_type,
+                }
+            )
         except (ValueError, TypeError):
             # If we can't parse, skip it
             continue
-    
+
     if not token_list:
         return f"Address {address} has no non-zero token balances on Movement Network."
-    
+
     # Format output - show all tokens individually
     result_lines = [f"Movement Network balances for {address}:\n"]
     for idx, token_data in enumerate(token_list, 1):
@@ -438,25 +440,25 @@ def format_movement_balance_response(balances_data: Dict[str, Any], address: str
         # Format with appropriate decimal places
         # For very small balances, show more decimal places to avoid showing as 0.000000
         if balance >= 1:
-            formatted = f"{balance:.6f}".rstrip('0').rstrip('.')
+            formatted = f"{balance:.6f}".rstrip("0").rstrip(".")
         elif balance >= 0.000001:
-            formatted = f"{balance:.6f}".rstrip('0').rstrip('.')
+            formatted = f"{balance:.6f}".rstrip("0").rstrip(".")
         else:
             # For very small balances (like WBTC.e with 0.00000013), show up to 8 decimal places
             # This ensures we don't display 0.000000 for tokens that actually have a balance
-            formatted = f"{balance:.8f}".rstrip('0').rstrip('.')
+            formatted = f"{balance:.8f}".rstrip("0").rstrip(".")
             # If after stripping it's empty or just ".", show at least 8 decimals
             if not formatted or formatted == ".":
                 formatted = f"{balance:.8f}"
         result_lines.append(f"{idx}. {name} ({symbol}): {formatted} {symbol}")
-    
+
     return "\n".join(result_lines)
 
 
 @tool
 def get_balance(address: str, network: str = DEFAULT_NETWORK) -> str:
     """Get the balance of a cryptocurrency address on a specific network.
-    
+
     This tool accepts both 42-character (Ethereum) and 66-character (Movement/Aptos) addresses.
     If address is 66 characters, it automatically uses Movement Network.
 
@@ -472,7 +474,7 @@ def get_balance(address: str, network: str = DEFAULT_NETWORK) -> str:
     # Auto-detect Movement Network for 66-character addresses
     if len(address) == 66 and address.startswith("0x"):
         network = "movement"
-    
+
     network_lower = network.lower()
     if network_lower in ["movement", "aptos"]:
         balances_data = fetch_movement_balances(address)
@@ -483,7 +485,7 @@ def get_balance(address: str, network: str = DEFAULT_NETWORK) -> str:
 @tool
 def get_token_balance(address: str, token: str, network: str = DEFAULT_NETWORK) -> str:
     """Get the balance of a specific token for an address on a network.
-    
+
     This tool accepts both 42-character (Ethereum) and 66-character (Movement/Aptos) addresses.
     If address is 66 characters, it automatically uses Movement Network.
 
@@ -500,7 +502,7 @@ def get_token_balance(address: str, token: str, network: str = DEFAULT_NETWORK) 
     # Auto-detect Movement Network for 66-character addresses
     if len(address) == 66 and address.startswith("0x"):
         network = "movement"
-    
+
     network_lower = network.lower()
     if network_lower in ["movement", "aptos"]:
         balances_data = fetch_movement_balances(address)
@@ -517,7 +519,7 @@ def get_token_balance(address: str, token: str, network: str = DEFAULT_NETWORK) 
                 name = metadata.get("name", "Unknown Token")
                 try:
                     amount_int = int(amount)
-                    formatted_balance = amount_int / (10 ** decimals)
+                    formatted_balance = amount_int / (10**decimals)
                     return f"{address} has {formatted_balance:.6f} {symbol} ({name}) on Movement Network"
                 except (ValueError, TypeError):
                     return f"{address} has {amount} {symbol} (raw) on Movement Network"

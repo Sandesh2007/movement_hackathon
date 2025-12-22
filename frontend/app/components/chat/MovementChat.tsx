@@ -76,12 +76,23 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
         description: "The message to send to the A2A agent",
       },
     ],
-    render: (props) => (
-      <>
-        <MessageToA2A {...props} />
-        <MessageFromA2A {...props} />
-      </>
-    ),
+    render: (props) => {
+      // Only show A2A communication if agentName and task are valid
+      if (
+        !props.args?.agentName ||
+        !props.args?.task ||
+        props.args.agentName.trim() === "" ||
+        props.args.task.trim() === ""
+      ) {
+        return <></>;
+      }
+      return (
+        <>
+          <MessageToA2A {...props} />
+          <MessageFromA2A {...props} />
+        </>
+      );
+    },
   });
 
   // Register transfer action - shows TransferCard when user wants to transfer tokens
@@ -281,7 +292,7 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
         // Detect supply confirmations from text messages
         if (msg.type === "text" && msg.role === "assistant") {
           const text = msg.content || "";
-          
+
           // Pattern: "You've successfully supplied X [ASSET] as collateral on [PROTOCOL]"
           // or "You've successfully supplied X [ASSET] to [PROTOCOL]"
           // or "supplied X [ASSET] as collateral on [PROTOCOL]"
@@ -290,15 +301,22 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
             /supplied\s+([\d.]+)\s+([A-Z]+)\s+(?:as collateral|to|on)\s+(MovePosition|Echelon)/i,
             /(?:successfully|supplied)\s+([\d.]+)\s+([A-Z]+)\s+to\s+(MovePosition|Echelon)/i,
           ];
-          
+
           for (const pattern of supplyPatterns) {
             const match = text.match(pattern);
             if (match) {
               const amount = match[1];
               const asset = match[2];
-              const protocol = match[3].toLowerCase() === "moveposition" ? "moveposition" : "echelon";
-              
-              console.log("✅ Supply confirmation detected from text:", { protocol, asset, amount });
+              const protocol =
+                match[3].toLowerCase() === "moveposition"
+                  ? "moveposition"
+                  : "echelon";
+
+              console.log("✅ Supply confirmation detected from text:", {
+                protocol,
+                asset,
+                amount,
+              });
               setSupplyConfirmation({ protocol, asset, amount });
               break;
             }
@@ -429,7 +447,7 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
             // Process parsed data here if needed
             if (parsed) {
               console.log("📦 Parsed A2A response:", parsed);
-              
+
               // Check if this is a supply confirmation response
               if (
                 parsed.status === "success" &&
@@ -442,7 +460,7 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
                 const protocol = parsed.protocol.toLowerCase();
                 const isMovePosition = protocol === "moveposition";
                 const isEchelon = protocol === "echelon";
-                
+
                 if (isMovePosition || isEchelon) {
                   console.log("✅ Supply confirmation from A2A response:", {
                     protocol,
@@ -456,7 +474,7 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
                   });
                 }
               }
-              
+
               // Check if this is a lending recommendation response
               if (
                 parsed.action &&
@@ -500,7 +518,8 @@ const ChatInner = ({ walletAddress }: MovementChatProps) => {
       {
         name: "asset",
         type: "string",
-        description: "The asset symbol that was supplied (e.g., 'MOVE', 'USDC')",
+        description:
+          "The asset symbol that was supplied (e.g., 'MOVE', 'USDC')",
         required: true,
       },
       {

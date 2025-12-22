@@ -427,7 +427,7 @@ export function SupplyModal({
 
   const usdValue = amount && asset ? parseFloat(amount) * asset.price : 0;
 
-  const canReview = 
+  const canReview =
     ready &&
     authenticated &&
     movementWallet &&
@@ -565,7 +565,9 @@ export function SupplyModal({
     }
 
     if (!movementWallet || !walletAddress || !asset) {
-      setSubmitError("Privy wallet not connected. Please connect your Movement wallet.");
+      setSubmitError(
+        "Privy wallet not connected. Please connect your Movement wallet."
+      );
       return;
     }
 
@@ -583,10 +585,7 @@ export function SupplyModal({
       return;
     }
 
-    if (
-      activeTab === "withdraw" &&
-      parseFloat(amount) > userSuppliedAmount
-    ) {
+    if (activeTab === "withdraw" && parseFloat(amount) > userSuppliedAmount) {
       setSubmitError("Amount exceeds your supplied amount");
       return;
     }
@@ -648,7 +647,7 @@ export function SupplyModal({
         txHash
       );
       setTxHash(txHash);
-      
+
       // Refresh portfolio data to update supplied amounts
       if (walletAddress) {
         try {
@@ -665,7 +664,7 @@ export function SupplyModal({
           console.error("Error refreshing portfolio:", error);
         }
       }
-      
+
       // Close modal on success after a short delay
       setTimeout(() => {
         onClose();
@@ -902,7 +901,9 @@ export function SupplyModal({
                   />
                 </svg>
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "supply" ? "Previously Supplied" : "Available to Withdraw"}
+                  {activeTab === "supply"
+                    ? "Previously Supplied"
+                    : "Available to Withdraw"}
                   {loadingPortfolio && (
                     <span className="ml-2 text-xs text-zinc-400">
                       (loading...)
@@ -924,7 +925,10 @@ export function SupplyModal({
                         <span className="text-zinc-900 dark:text-zinc-50">
                           {(activeTab === "supply"
                             ? userSuppliedAmount + parseFloat(amount)
-                            : Math.max(0, userSuppliedAmount - parseFloat(amount))
+                            : Math.max(
+                                0,
+                                userSuppliedAmount - parseFloat(amount)
+                              )
                           ).toFixed(4)}{" "}
                           {asset.symbol}
                         </span>
@@ -1053,7 +1057,9 @@ export function SupplyModal({
                   ></path>
                 </svg>
                 {submissionStep ||
-                  (activeTab === "supply" ? "Initiating Supply..." : "Initiating Withdraw...")}
+                  (activeTab === "supply"
+                    ? "Initiating Supply..."
+                    : "Initiating Withdraw...")}
               </span>
             ) : activeTab === "supply" ? (
               <span className="flex items-center justify-center gap-2">
@@ -1091,10 +1097,11 @@ export function SupplyModal({
               </span>
             )}
           </button>
-          
+
           {!walletAddress && (
             <p className="mt-3 text-xs text-center text-zinc-500 dark:text-zinc-400">
-              Connect your Privy wallet to {activeTab === "supply" ? "supply" : "withdraw"} tokens
+              Connect your Privy wallet to{" "}
+              {activeTab === "supply" ? "supply" : "withdraw"} tokens
             </p>
           )}
 

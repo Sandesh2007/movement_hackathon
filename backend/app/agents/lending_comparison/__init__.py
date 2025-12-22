@@ -1,2 +1,1 @@
 """Lending Comparison Agent module."""
-
