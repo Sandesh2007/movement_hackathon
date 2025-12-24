@@ -21,8 +21,8 @@ from .core.response_validator import (
     validate_and_serialize_response,
     validate_json,
 )
-from .executor import SentimentExecutor
-from .orchestrated_executor import OrchestratedSentimentExecutor
+
+# Import executors inside function to avoid circular import
 from .services.query_parser import (
     parse_sentiment_query,
     parse_social_dominance_query,
@@ -230,6 +230,10 @@ def create_sentiment_agent_app(
         skills=[skill],
         supportsAuthenticatedExtendedCard=False,
     )
+
+    # Import executors here to avoid circular import
+    from .executor import SentimentExecutor
+    from .orchestrated_executor import OrchestratedSentimentExecutor
 
     # Use orchestrated executor if enabled, otherwise use simple executor
     executor = OrchestratedSentimentExecutor() if use_orchestrated else SentimentExecutor()
