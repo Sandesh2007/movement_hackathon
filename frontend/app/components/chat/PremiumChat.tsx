@@ -58,13 +58,16 @@ export default function PremiumChat({
     // Add more premium agents here as they become available
     const premiumAgentUrlMap: Record<string, string> = {
       premium_lending: `${baseUrl}/premium_lending_agent`,
+      sentiment: `${baseUrl}/sentiment`,
       // Future premium agents can be added here:
       // premium_balance: `${baseUrl}/premium_balance_agent`,
       // premium_swap: `${baseUrl}/premium_swap_agent`,
     };
 
     const agentUrl =
-      premiumAgentUrlMap[selectedAgent] || premiumAgentUrlMap.premium_lending;
+      premiumAgentUrlMap[selectedAgent] ||
+      premiumAgentUrlMap.premium_lending ||
+      premiumAgentUrlMap.sentiment;
 
     try {
       clientRef.current = new A2APremiumA2AClient(agentUrl);
@@ -293,6 +296,7 @@ export default function PremiumChat({
   // Premium agent labels - add more as premium agents are added
   const premiumAgentLabels: Record<string, string> = {
     premium_lending: "Premium Lending Agent",
+    sentiment: "Sentiment & Trading Agent",
     // Future premium agents:
     // premium_balance: "Premium Balance Agent",
     // premium_swap: "Premium Swap Agent",
@@ -300,6 +304,7 @@ export default function PremiumChat({
 
   const premiumAgentOptions = [
     { value: "premium_lending", label: "Premium Lending Agent" },
+    { value: "sentiment", label: "Sentiment & Trading Agent" },
     // Add more premium agents here as they become available
   ];
 
@@ -380,6 +385,16 @@ export default function PremiumChat({
                           <li>• Show me the best supply APY</li>
                           <li>• Compare borrowing rates between protocols</li>
                           <li>• Get best supply rate across all assets</li>
+                        </>
+                      )}
+                      {selectedAgent === "sentiment" && (
+                        <>
+                          <li>• Get sentiment balance for Bitcoin over the last week</li>
+                          <li>• Should I buy or sell Bitcoin? Analyze sentiment and price trends</li>
+                          <li>• What's the trading recommendation for Ethereum?</li>
+                          <li>• Get Bitcoin price analysis with sentiment data</li>
+                          <li>• How many times has Ethereum been mentioned on social media?</li>
+                          <li>• What are the top 3 trending words in crypto?</li>
                         </>
                       )}
                       {/* Add example questions for future premium agents here */}
