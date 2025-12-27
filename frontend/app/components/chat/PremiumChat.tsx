@@ -18,6 +18,7 @@ import {
 import { PaymentModal } from "../payment-modal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TradingRecommendation } from "./TradingRecommendation";
 
 interface PremiumChatProps {
   walletAddress: string | null;
@@ -58,13 +59,16 @@ export default function PremiumChat({
     // Add more premium agents here as they become available
     const premiumAgentUrlMap: Record<string, string> = {
       premium_lending: `${baseUrl}/premium_lending_agent`,
+      sentiment: `${baseUrl}/sentiment`,
       // Future premium agents can be added here:
       // premium_balance: `${baseUrl}/premium_balance_agent`,
       // premium_swap: `${baseUrl}/premium_swap_agent`,
     };
 
     const agentUrl =
-      premiumAgentUrlMap[selectedAgent] || premiumAgentUrlMap.premium_lending;
+      premiumAgentUrlMap[selectedAgent] ||
+      premiumAgentUrlMap.premium_lending ||
+      premiumAgentUrlMap.sentiment;
 
     try {
       clientRef.current = new A2APremiumA2AClient(agentUrl);
@@ -250,12 +254,20 @@ export default function PremiumChat({
       }
 
       // Try to parse JSON response and extract readable content
+      let parsedResponse: any = null;
       try {
-        const parsed = JSON.parse(responseContent);
-        if (parsed.response) {
-          responseContent = parsed.response;
-        } else if (parsed.message) {
-          responseContent = parsed.message;
+        parsedResponse = JSON.parse(responseContent);
+        // Check if it's a trading recommendation
+        if (
+          parsedResponse.type === "trading_recommendation" ||
+          parsedResponse.recommendation
+        ) {
+          // Keep the full JSON for TradingRecommendation component
+          responseContent = JSON.stringify(parsedResponse);
+        } else if (parsedResponse.response) {
+          responseContent = parsedResponse.response;
+        } else if (parsedResponse.message) {
+          responseContent = parsedResponse.message;
         }
       } catch {
         // Not JSON, use as-is
@@ -293,6 +305,7 @@ export default function PremiumChat({
   // Premium agent labels - add more as premium agents are added
   const premiumAgentLabels: Record<string, string> = {
     premium_lending: "Premium Lending Agent",
+    sentiment: "Sentiment & Trading Agent",
     // Future premium agents:
     // premium_balance: "Premium Balance Agent",
     // premium_swap: "Premium Swap Agent",
@@ -300,6 +313,7 @@ export default function PremiumChat({
 
   const premiumAgentOptions = [
     { value: "premium_lending", label: "Premium Lending Agent" },
+    { value: "sentiment", label: "Sentiment & Trading Agent" },
     // Add more premium agents here as they become available
   ];
 
@@ -382,6 +396,31 @@ export default function PremiumChat({
                           <li>• Get best supply rate across all assets</li>
                         </>
                       )}
+                      {selectedAgent === "sentiment" && (
+                        <>
+                          <li>
+                            • Get sentiment balance for Bitcoin over the last
+                            week
+                          </li>
+                          <li>
+                            • Should I buy or sell Bitcoin? Analyze sentiment
+                            and price trends
+                          </li>
+                          <li>
+                            • What's the trading recommendation for Ethereum?
+                          </li>
+                          <li>
+                            • Get Bitcoin price analysis with sentiment data
+                          </li>
+                          <li>
+                            • How many times has Ethereum been mentioned on
+                            social media?
+                          </li>
+                          <li>
+                            • What are the top 3 trending words in crypto?
+                          </li>
+                        </>
+                      )}
                       {/* Add example questions for future premium agents here */}
                     </ul>
                   </div>
@@ -437,204 +476,220 @@ export default function PremiumChat({
                         </p>
                       ) : (
                         <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              // Headers
-                              h1: ({ children, ...props }) => (
-                                <h1
-                                  className="text-lg font-bold mb-2 mt-3 first:mt-0 text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </h1>
-                              ),
-                              h2: ({ children, ...props }) => (
-                                <h2
-                                  className="text-base font-semibold mb-2 mt-3 first:mt-0 text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </h2>
-                              ),
-                              h3: ({ children, ...props }) => (
-                                <h3
-                                  className="text-sm font-semibold mb-1.5 mt-2 first:mt-0 text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </h3>
-                              ),
-                              // Paragraphs
-                              p: ({ children, ...props }) => (
-                                <p
-                                  className="mb-2 last:mb-0 text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </p>
-                              ),
-                              // Text formatting
-                              strong: ({ children, ...props }) => (
-                                <strong
-                                  className="font-semibold text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </strong>
-                              ),
-                              em: ({ children, ...props }) => (
-                                <em
-                                  className="italic text-zinc-800 dark:text-zinc-200"
-                                  {...props}
-                                >
-                                  {children}
-                                </em>
-                              ),
-                              // Lists
-                              ul: ({ children, ...props }) => (
-                                <ul
-                                  className="list-disc list-inside mb-2 space-y-1 text-zinc-900 dark:text-zinc-100 ml-2"
-                                  {...props}
-                                >
-                                  {children}
-                                </ul>
-                              ),
-                              ol: ({ children, ...props }) => (
-                                <ol
-                                  className="list-decimal list-inside mb-2 space-y-1 text-zinc-900 dark:text-zinc-100 ml-2"
-                                  {...props}
-                                >
-                                  {children}
-                                </ol>
-                              ),
-                              li: ({ children, ...props }) => (
-                                <li
-                                  className="text-zinc-900 dark:text-zinc-100"
-                                  {...props}
-                                >
-                                  {children}
-                                </li>
-                              ),
-                              // Code blocks
-                              code: ({
-                                className,
-                                children,
-                                ...props
-                              }: any) => {
-                                const isInline = !className;
-                                return isInline ? (
-                                  <code
-                                    className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-xs font-mono"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </code>
-                                ) : (
-                                  <code
-                                    className="block p-2 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-xs font-mono overflow-x-auto mb-2"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </code>
-                                );
-                              },
-                              pre: ({ children, ...props }) => (
-                                <pre
-                                  className="mb-2 overflow-x-auto"
-                                  {...props}
-                                >
-                                  {children}
-                                </pre>
-                              ),
-                              // Blockquotes
-                              blockquote: ({ children, ...props }) => (
-                                <blockquote
-                                  className="border-l-4 border-zinc-300 dark:border-zinc-600 pl-4 italic my-2 text-zinc-700 dark:text-zinc-300"
-                                  {...props}
-                                >
-                                  {children}
-                                </blockquote>
-                              ),
-                              // Horizontal rule
-                              hr: ({ ...props }) => (
-                                <hr
-                                  className="my-3 border-zinc-300 dark:border-zinc-700"
-                                  {...props}
-                                />
-                              ),
-                              // Tables (from remark-gfm)
-                              table: ({ children, ...props }) => (
-                                <div className="overflow-x-auto my-3">
-                                  <table
-                                    className="min-w-full border-collapse border border-zinc-300 dark:border-zinc-700"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </table>
-                                </div>
-                              ),
-                              thead: ({ children, ...props }) => (
-                                <thead
-                                  className="bg-zinc-200 dark:bg-zinc-800"
-                                  {...props}
-                                >
-                                  {children}
-                                </thead>
-                              ),
-                              tbody: ({ children, ...props }) => (
-                                <tbody {...props}>{children}</tbody>
-                              ),
-                              tr: ({ children, ...props }) => (
-                                <tr
-                                  className="border-b border-zinc-300 dark:border-zinc-700"
-                                  {...props}
-                                >
-                                  {children}
-                                </tr>
-                              ),
-                              th: ({ children, ...props }) => (
-                                <th
-                                  className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700"
-                                  {...props}
-                                >
-                                  {children}
-                                </th>
-                              ),
-                              td: ({ children, ...props }) => (
-                                <td
-                                  className="px-3 py-2 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700"
-                                  {...props}
-                                >
-                                  {children}
-                                </td>
-                              ),
-                              // Task lists (from remark-gfm)
-                              input: ({ checked, ...props }: any) => (
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled
-                                  className="mr-2 accent-purple-600"
-                                  {...props}
-                                />
-                              ),
-                              // Links
-                              a: ({ children, href, ...props }) => (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-purple-600 dark:text-purple-400 hover:underline"
-                                  {...props}
-                                >
-                                  {children}
-                                </a>
-                              ),
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
+                          {/* Check if this is a trading recommendation */}
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(message.content);
+                              if (
+                                parsed.type === "trading_recommendation" ||
+                                parsed.recommendation
+                              ) {
+                                return <TradingRecommendation data={parsed} />;
+                              }
+                            } catch {
+                              // Not a trading recommendation, render as markdown
+                            }
+                            return (
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  // Headers
+                                  h1: ({ children, ...props }) => (
+                                    <h1
+                                      className="text-lg font-bold mb-2 mt-3 first:mt-0 text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </h1>
+                                  ),
+                                  h2: ({ children, ...props }) => (
+                                    <h2
+                                      className="text-base font-semibold mb-2 mt-3 first:mt-0 text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </h2>
+                                  ),
+                                  h3: ({ children, ...props }) => (
+                                    <h3
+                                      className="text-sm font-semibold mb-1.5 mt-2 first:mt-0 text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </h3>
+                                  ),
+                                  // Paragraphs
+                                  p: ({ children, ...props }) => (
+                                    <p
+                                      className="mb-2 last:mb-0 text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </p>
+                                  ),
+                                  // Text formatting
+                                  strong: ({ children, ...props }) => (
+                                    <strong
+                                      className="font-semibold text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </strong>
+                                  ),
+                                  em: ({ children, ...props }) => (
+                                    <em
+                                      className="italic text-zinc-800 dark:text-zinc-200"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </em>
+                                  ),
+                                  // Lists
+                                  ul: ({ children, ...props }) => (
+                                    <ul
+                                      className="list-disc list-inside mb-2 space-y-1 text-zinc-900 dark:text-zinc-100 ml-2"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </ul>
+                                  ),
+                                  ol: ({ children, ...props }) => (
+                                    <ol
+                                      className="list-decimal list-inside mb-2 space-y-1 text-zinc-900 dark:text-zinc-100 ml-2"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </ol>
+                                  ),
+                                  li: ({ children, ...props }) => (
+                                    <li
+                                      className="text-zinc-900 dark:text-zinc-100"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </li>
+                                  ),
+                                  // Code blocks
+                                  code: ({
+                                    className,
+                                    children,
+                                    ...props
+                                  }: any) => {
+                                    const isInline = !className;
+                                    return isInline ? (
+                                      <code
+                                        className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-xs font-mono"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <code
+                                        className="block p-2 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-xs font-mono overflow-x-auto mb-2"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  pre: ({ children, ...props }) => (
+                                    <pre
+                                      className="mb-2 overflow-x-auto"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </pre>
+                                  ),
+                                  // Blockquotes
+                                  blockquote: ({ children, ...props }) => (
+                                    <blockquote
+                                      className="border-l-4 border-zinc-300 dark:border-zinc-600 pl-4 italic my-2 text-zinc-700 dark:text-zinc-300"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </blockquote>
+                                  ),
+                                  // Horizontal rule
+                                  hr: ({ ...props }) => (
+                                    <hr
+                                      className="my-3 border-zinc-300 dark:border-zinc-700"
+                                      {...props}
+                                    />
+                                  ),
+                                  // Tables (from remark-gfm)
+                                  table: ({ children, ...props }) => (
+                                    <div className="overflow-x-auto my-3">
+                                      <table
+                                        className="min-w-full border-collapse border border-zinc-300 dark:border-zinc-700"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </table>
+                                    </div>
+                                  ),
+                                  thead: ({ children, ...props }) => (
+                                    <thead
+                                      className="bg-zinc-200 dark:bg-zinc-800"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </thead>
+                                  ),
+                                  tbody: ({ children, ...props }) => (
+                                    <tbody {...props}>{children}</tbody>
+                                  ),
+                                  tr: ({ children, ...props }) => (
+                                    <tr
+                                      className="border-b border-zinc-300 dark:border-zinc-700"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </tr>
+                                  ),
+                                  th: ({ children, ...props }) => (
+                                    <th
+                                      className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </th>
+                                  ),
+                                  td: ({ children, ...props }) => (
+                                    <td
+                                      className="px-3 py-2 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </td>
+                                  ),
+                                  // Task lists (from remark-gfm)
+                                  input: ({ checked, ...props }: any) => (
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled
+                                      className="mr-2 accent-purple-600"
+                                      {...props}
+                                    />
+                                  ),
+                                  // Links
+                                  a: ({ children, href, ...props }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-purple-600 dark:text-purple-400 hover:underline"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </a>
+                                  ),
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
