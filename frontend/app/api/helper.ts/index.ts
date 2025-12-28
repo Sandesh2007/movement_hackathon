@@ -44,6 +44,15 @@ export class A2AMiddlewareAgent extends AbstractAgent {
     this.agentCards = Promise.all(
       this.agentClients.map((client) => client.getAgentCard())
     );
+    this.agentCards.then((cards) => {
+      cards.forEach((card) => {
+        console.log("card", card);
+        console.log("card.url", card.url);
+        console.log("card.name", card.name);
+        console.log("card.description", card.description);
+        console.log("card.version", card.version);
+      });
+    });
     this.orchestrationAgent = config.orchestrationAgent;
   }
 
