@@ -195,7 +195,9 @@ export default function ChatPage() {
           </div>
         </div>
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden rounded-b-lg border-b border-zinc-200 dark:border-zinc-800">
-          <MovementChat walletAddress={walletAddress} />
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <MovementChat walletAddress={walletAddress} />
+          </div>
         </div>
       </div>
 

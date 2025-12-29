@@ -102,18 +102,23 @@ body {
 
 /* Custom CopilotKit Styles */
 .copilotKitInput {
-  @apply rounded-xl! border-zinc-200! bg-zinc-50! px-4! py-3! shadow-sm! focus:border-zinc-400! focus:ring-0! dark:border-zinc-800! dark:bg-zinc-900! dark:focus:border-zinc-700!;
+  @apply rounded-xl! border-zinc-200! bg-zinc-50! px-3! py-2.5! sm:px-4! sm:py-3! shadow-sm! focus:border-zinc-400! focus:ring-0! dark:border-zinc-800! dark:bg-zinc-900! dark:focus:border-zinc-700!;
 }
 
 .copilotKitInput > textarea {
-  @apply dark:text-zinc-100! text-zinc-800!;
+  @apply dark:text-zinc-100! text-zinc-800! text-sm! sm:text-base!;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
 }
 .copilotKitInputControls > button {
   @apply dark:text-zinc-100! text-zinc-800!;
 }
 
 .copilotKitMessage {
-  @apply rounded-2xl! px-5! py-3!;
+  @apply rounded-2xl! px-3! py-2.5! sm:px-4! sm:py-3! md:px-5! md:py-3!;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
 }
 
 .copilotKitMessage.user {
@@ -165,6 +170,51 @@ div.copilotKitMessages {
   overflow-y: auto !important;
   overflow-x: hidden !important;
   min-height: 0 !important;
+  padding: 0.75rem !important;
+}
+
+/* Ensure messages are visible and properly wrapped */
+.copilotKitChat [class*="Message"],
+.copilotKitChat [class*="message"] {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Mobile-specific fixes for message visibility */
+@media (max-width: 768px) {
+  .copilotKitChat {
+    height: calc(100vh - 65px) !important;
+  }
+  
+  .copilotKitChat [class*="MessagesContainer"],
+  .copilotKitChat [class*="messages-container"],
+  .copilotKitChat > div > div:first-child {
+    padding: 0.5rem !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .copilotKitMessage {
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  /* Ensure text is readable on mobile */
+  .copilotKitChat p,
+  .copilotKitChat span,
+  .copilotKitChat div {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* Fix for A2A message boxes on mobile */
+  .a2a-message-enter {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
 /* A2A Message Flow Animation */
