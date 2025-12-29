@@ -49,9 +49,48 @@ export function Sidebar({
   ];
 
   const agents = [
-    { name: "Balance Agent", description: "Check cryptocurrency balances" },
-    { name: "Bridge Agent", description: "Cross-chain asset bridging" },
-    { name: "Lending Agent", description: "Lending & borrowing" },
+    // Free Agents
+    { 
+      name: "Balance Agent", 
+      description: "Check cryptocurrency balances",
+      isPremium: false 
+    },
+    { 
+      name: "Bridge Agent", 
+      description: "Cross-chain asset bridging",
+      isPremium: false 
+    },
+    { 
+      name: "Lending Agent", 
+      description: "Lending & borrowing operations",
+      isPremium: false 
+    },
+    { 
+      name: "Swap Agent", 
+      description: "Execute token swaps",
+      isPremium: false 
+    },
+    { 
+      name: "Transfer Agent", 
+      description: "Transfer tokens between addresses",
+      isPremium: false 
+    },
+    { 
+      name: "Orchestrator Agent", 
+      description: "Coordinates multiple agents",
+      isPremium: false 
+    },
+    // Premium Agents
+    { 
+      name: "Premium Lending Agent", 
+      description: "Advanced lending with premium features",
+      isPremium: true 
+    },
+    { 
+      name: "Sentiment & Trading Agent", 
+      description: "Sentiment analysis & trading recommendations",
+      isPremium: true 
+    },
   ];
 
   return (
@@ -180,20 +219,67 @@ export function Sidebar({
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 AVAILABLE AGENTS
               </h2>
+              
+              {/* Free Agents */}
+              <div className="space-y-2 mb-6">
+                {agents
+                  .filter((agent) => !agent.isPremium)
+                  .map((agent) => (
+                    <div
+                      key={agent.name}
+                      className="rounded-lg shadow-sm transition-all hover:shadow-md cursor-pointer duration-150 border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                            {agent.name}
+                          </p>
+                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                            {agent.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Premium Agents Section */}
               <div className="space-y-2">
-                {agents.map((agent) => (
-                  <div
-                    key={agent.name}
-                    className="rounded-lg shadow-sm transition-all hover:shadow-md cursor-pointer duration-150 border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
-                  >
-                    <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
-                      {agent.name}
-                    </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {agent.description}
-                    </p>
-                  </div>
-                ))}
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    PREMIUM AGENTS
+                  </h3>
+                </div>
+                {agents
+                  .filter((agent) => agent.isPremium)
+                  .map((agent) => (
+                    <div
+                      key={agent.name}
+                      className="rounded-lg shadow-sm transition-all hover:shadow-md cursor-pointer duration-150 border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 p-3 relative overflow-hidden"
+                    >
+                      {/* Premium Badge */}
+                      <div className="absolute top-2 right-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800/70 dark:text-amber-200">
+                          <Crown className="h-2.5 w-2.5" />
+                          x402
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between pr-12">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Crown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                              {agent.name}
+                            </p>
+                          </div>
+                          <p className="text-xs text-amber-700 dark:text-amber-300/80">
+                            {agent.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
