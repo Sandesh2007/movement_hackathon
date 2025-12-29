@@ -162,58 +162,174 @@ export default function EchelonPage() {
     fetchMarkets();
   }, []);
 
-  // Fetch user vault data
-  const fetchVault = async () => {
-    if (!movementWallet?.address || assets.length === 0) return;
+  // Fetch user vault data with optional retry mechanism
+  const fetchVault = async (retryCount = 0, maxRetries = 2) => {
+    if (!movementWallet?.address) {
+      console.log("[UI] fetchVault: Skipping - no address");
+      return;
+    }
+
+    // Don't require assets to be loaded - we can still process vault data
+    // Assets will be matched later if available
 
     setLoadingVault(true);
     try {
+      // Add timestamp to prevent stale data and force fresh fetch
       const response = await fetch(
-        `/api/echelon/vault?address=${movementWallet.address}`
+        `/api/echelon/vault?address=${movementWallet.address}&t=${Date.now()}`,
+        {
+          cache: "no-store", // Always fetch fresh data for user's own vault
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        }
       );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch vault: ${response.status}`);
+      }
+      
       const data = await response.json();
 
-      if (data.data?.collaterals?.data) {
-        const supplies: UserSupply[] = data.data.collaterals.data.map(
-          (item: { key: { inner: string }; value: string }) => {
-            const marketAddress = item.key.inner;
+      console.log("[UI] Vault API Response:", data);
+      console.log("[UI] Available assets:", assets.map((a) => a.symbol));
+
+      // Process collaterals - use coinAmount (converted from shares)
+      // Handle both possible response structures
+      const collaterals = data.data?.collaterals || data.collaterals || [];
+      
+      if (Array.isArray(collaterals) && collaterals.length > 0) {
+        console.log(`[UI] Processing ${collaterals.length} collateral(s)`);
+        
+        const supplies: UserSupply[] = collaterals.map(
+          (item: {
+            marketAddress: string;
+            shares: string;
+            coinAmount: string;
+          }) => {
+            const marketAddress = item.marketAddress;
             const symbol = MARKET_TO_SYMBOL[marketAddress] || "Unknown";
             const asset = assets.find((a) => a.symbol === symbol);
+            
+            console.log(`[UI] Processing collateral:`, {
+              marketAddress,
+              symbol,
+              coinAmount: item.coinAmount,
+              foundAsset: !!asset,
+              assetSymbol: asset?.symbol,
+            });
+
+            // Always include the supply, even if asset metadata isn't found
             return {
               marketAddress,
-              amount: item.value,
-              symbol,
+              amount: item.coinAmount, // Use coinAmount (actual coin amount, not shares)
+              symbol: symbol || "Unknown",
               icon: asset?.icon || "",
               price: asset?.price || 0,
               apr: asset?.supplyApr || 0,
               decimals: asset?.decimals || 8,
             };
           }
-        );
+        ).filter((supply) => {
+          // Only filter out if amount is 0 or invalid
+          // Handle both string and number amounts
+          const amountStr = String(supply.amount || "0");
+          const amount = parseFloat(amountStr);
+          const isValid = !isNaN(amount) && amount > 0;
+          
+          if (!isValid) {
+            console.warn(`[UI] Filtering out supply with invalid amount:`, {
+              marketAddress: supply.marketAddress,
+              amount: supply.amount,
+              parsed: amount,
+            });
+          }
+          
+          return isValid;
+        });
+        
+        console.log("[UI] Processed supplies (after filtering):", supplies);
+        console.log("[UI] Setting userSupplies with", supplies.length, "item(s)");
         setUserSupplies(supplies);
+      } else {
+        console.log("[UI] No collaterals found or invalid structure:", {
+          hasData: !!data.data,
+          hasCollaterals: !!data.data?.collaterals,
+          hasCollateralsDirect: !!data.collaterals,
+          isArray: Array.isArray(data.data?.collaterals),
+          collateralsLength: collaterals.length,
+          collaterals: collaterals,
+          fullData: data,
+        });
+        setUserSupplies([]);
       }
 
-      if (data.data?.liabilities?.data) {
-        const borrows: UserBorrow[] = data.data.liabilities.data.map(
-          (item: { key: { inner: string }; value: string }) => {
-            const marketAddress = item.key.inner;
+      // Process liabilities - use totalLiability (principal + interest_accumulated)
+      // Handle both possible response structures
+      const liabilities = data.data?.liabilities || data.liabilities || [];
+      
+      if (Array.isArray(liabilities) && liabilities.length > 0) {
+        console.log(`[UI] Processing ${liabilities.length} liability/borrow(s)`);
+        
+        const borrows: UserBorrow[] = liabilities.map(
+          (item: {
+            marketAddress: string;
+            principal: string;
+            interestAccumulated: string;
+            totalLiability: string;
+          }) => {
+            const marketAddress = item.marketAddress;
             const symbol = MARKET_TO_SYMBOL[marketAddress] || "Unknown";
             const asset = assets.find((a) => a.symbol === symbol);
+            
+            console.log(`[UI] Processing liability:`, {
+              marketAddress,
+              symbol,
+              totalLiability: item.totalLiability,
+              foundAsset: !!asset,
+            });
+
             return {
               marketAddress,
-              amount: item.value,
-              symbol,
+              amount: item.totalLiability, // Use totalLiability (principal + interest)
+              symbol: symbol || "Unknown",
               icon: asset?.icon || "",
               price: asset?.price || 0,
               apr: asset?.borrowApr || 0,
               decimals: asset?.decimals || 8,
             };
           }
-        );
+        ).filter((borrow) => {
+          // Only filter out if amount is 0 or invalid
+          const amount = parseFloat(borrow.amount);
+          return !isNaN(amount) && amount > 0;
+        });
+        
+        console.log("[UI] Processed borrows (after filtering):", borrows);
         setUserBorrows(borrows);
+      } else {
+        console.log("[UI] No liabilities found or invalid structure:", {
+          hasData: !!data.data,
+          hasLiabilities: !!data.data?.liabilities,
+          hasLiabilitiesDirect: !!data.liabilities,
+          isArray: Array.isArray(data.data?.liabilities),
+          liabilitiesLength: liabilities.length,
+        });
+        setUserBorrows([]);
       }
     } catch (err) {
-      console.error("Failed to fetch vault:", err);
+      console.error("[UI] Failed to fetch vault:", err);
+      
+      // Retry logic: if this is a retry attempt and we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        console.log(`[UI] Retrying vault fetch (attempt ${retryCount + 1}/${maxRetries})...`);
+        // Wait before retrying (exponential backoff)
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return fetchVault(retryCount + 1, maxRetries);
+      }
+      
+      setUserSupplies([]);
+      setUserBorrows([]);
     } finally {
       setLoadingVault(false);
     }
@@ -636,10 +752,12 @@ export default function EchelonPage() {
                   </span>
                   <button
                     onClick={() => setHideZeroBalance(!hideZeroBalance)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${hideZeroBalance ? "bg-purple-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${hideZeroBalance ? "bg-purple-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                    aria-label={hideZeroBalance ? "Show all assets" : "Hide zero balance assets"}
+                    type="button"
                   >
                     <span
-                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${hideZeroBalance ? "translate-x-5" : "translate-x-0.5"}`}
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform pointer-events-none ${hideZeroBalance ? "translate-x-5" : "translate-x-0.5"}`}
                     />
                   </button>
                 </div>
@@ -902,10 +1020,12 @@ export default function EchelonPage() {
             ? availableBalances[selectedAsset.symbol.toUpperCase()] || 0
             : 0
         }
-        onSuccess={() => {
+        onSuccess={async () => {
+          // Wait a bit for blockchain state to update after transaction confirmation
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           // Refresh vault data and balances after successful supply
-          fetchVault();
-          fetchAvailableBalances();
+          await fetchVault();
+          await fetchAvailableBalances();
         }}
       />
 
@@ -921,9 +1041,11 @@ export default function EchelonPage() {
             ? (totalSupplyBalance * 0.7 - totalBorrowBalance) / (selectedAsset.price || 1)
             : 0
         }
-        onSuccess={() => {
+        onSuccess={async () => {
+          // Wait a bit for blockchain state to update after transaction confirmation
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           // Refresh vault data after successful borrow
-          fetchVault();
+          await fetchVault();
         }}
       />
 
@@ -945,10 +1067,12 @@ export default function EchelonPage() {
               }
             : null
         }
-        onSuccess={() => {
+        onSuccess={async () => {
+          // Wait a bit for blockchain state to update after transaction confirmation
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           // Refresh vault data and balances after successful withdraw
-          fetchVault();
-          fetchAvailableBalances();
+          await fetchVault();
+          await fetchAvailableBalances();
         }}
       />
     </div>

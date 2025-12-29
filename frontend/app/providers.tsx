@@ -3,6 +3,7 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { CopilotKit } from "@copilotkit/react-core";
 import { ReactNode, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MovementWalletModal } from "./components/movement-wallet-modal";
 import {
   Provider as ReduxProvider,
@@ -43,6 +44,12 @@ function PrivyProviderWithConfig({
   copilotApiKey: string | undefined;
 }) {
   const config = useMovementConfig();
+  const pathname = usePathname();
+  
+  // Only load CopilotKit on pages that need it (chat pages)
+  // This prevents unnecessary API calls on pages like /echelon
+  const needsCopilotKit = pathname?.startsWith("/chat") || 
+                          pathname?.startsWith("/premiumchat");
 
   return (
     <PrivyProvider
@@ -86,17 +93,24 @@ function PrivyProviderWithConfig({
         ],
       }}
     >
-      <CopilotKit
-        runtimeUrl="/api/copilotkit"
-        showDevConsole={false}
-        agent="a2a_chat"
-        publicApiKey={copilotApiKey}
-      >
+      {needsCopilotKit ? (
+        <CopilotKit
+          runtimeUrl="/api/copilotkit"
+          showDevConsole={false}
+          agent="a2a_chat"
+          publicApiKey={copilotApiKey}
+        >
+          <ConfigGate>
+            {children}
+            <MovementWalletModal />
+          </ConfigGate>
+        </CopilotKit>
+      ) : (
         <ConfigGate>
           {children}
           <MovementWalletModal />
         </ConfigGate>
-      </CopilotKit>
+      )}
     </PrivyProvider>
   );
 }
