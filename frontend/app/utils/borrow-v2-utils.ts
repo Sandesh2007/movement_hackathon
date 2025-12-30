@@ -223,8 +223,9 @@ export async function executeBorrowV2(params: BorrowV2Params): Promise<string> {
     }
 
     // Simulate the transaction
+    // Note: signerPublicKey accepts hex string (without 0x prefix) or PublicKey object
     const simulationResult = await aptos.transaction.simulate.simple({
-      signerPublicKey: pubKeyForSim,
+      signerPublicKey: pubKeyForSim as any, // Aptos SDK accepts string but TypeScript types are strict
       transaction: simulationTxn,
     });
 
@@ -474,8 +475,9 @@ export async function executeRepayV2(params: BorrowV2Params): Promise<string> {
     }
 
     // Simulate the transaction
+    // Note: signerPublicKey accepts hex string (without 0x prefix) or PublicKey object
     const simulationResult = await aptos.transaction.simulate.simple({
-      signerPublicKey: pubKeyForSim,
+      signerPublicKey: pubKeyForSim as any, // Aptos SDK accepts string but TypeScript types are strict
       transaction: simulationTxn,
     });
 
